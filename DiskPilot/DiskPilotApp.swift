@@ -8,36 +8,38 @@ import SwiftUI
 @main
 struct DiskPilotApp: App {
     @State private var viewModel = DiskPilotViewModel()
+    @Environment(\.openWindow) private var openWindow
 
     var body: some Scene {
-        WindowGroup(id: "dashboard") {
-            DashboardView()
-                .environment(viewModel)
-                .frame(minWidth: 960, minHeight: 640)
-        }
-        .defaultSize(width: 1100, height: 720)
-        .commands {
-            CommandGroup(replacing: .newItem) {}
-        }
-
+        // The menu bar is the app. There is no `WindowGroup`, so nothing is built,
+        // laid out, or retained until the user opens the panel — which is most of
+        // the difference in idle memory against the old always-on dashboard window.
         MenuBarExtra {
-            if viewModel.menuBarEnabled {
-                MenuBarView()
-                    .environment(viewModel)
-            } else {
-                Text("Menu bar disabled in Settings")
-                    .padding()
-            }
+            PanelView()
+                .environment(viewModel)
         } label: {
-            if viewModel.menuBarEnabled {
-                MenuBarIconLabel()
-                    .environment(viewModel)
-            } else {
-                Image(systemName: "externaldrive.fill")
-                    .font(.system(size: 16, weight: .medium))
-                    .opacity(0.4)
-            }
+            MenuBarIconLabel()
+                .environment(viewModel)
+                .task {
+                    // `openWindow` only exists inside a scene, so the view model is
+                    // handed a closure here rather than reaching for a window itself.
+                    viewModel.applicationDidLaunch(openReview: { openWindow(id: "review") })
+                }
         }
         .menuBarExtraStyle(.window)
+
+        // `Window`, not `WindowGroup`: one review window, opened on demand, and no
+        // instance exists at launch.
+        Window("Review", id: "review") {
+            CleanerReviewView()
+                .environment(viewModel)
+        }
+        .defaultSize(width: 760, height: 540)
+        .commandsRemoved()
+
+        Settings {
+            SettingsView()
+                .environment(viewModel)
+        }
     }
 }

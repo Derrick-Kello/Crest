@@ -5,25 +5,32 @@
 
 import SwiftUI
 
-/// Menu bar status item — SF Symbol is reliable; asset image used when present.
+/// The menu-bar status item: a drive glyph, optionally followed by the free-space
+/// figure. The health dot only appears once space is actually tight — a badge that
+/// is always lit stops carrying information.
 struct MenuBarIconLabel: View {
     @Environment(DiskPilotViewModel.self) private var viewModel
 
     var body: some View {
-        ZStack(alignment: .topTrailing) {
-            Image(systemName: "externaldrive.fill")
-                .font(.system(size: 16, weight: .semibold))
-                .symbolRenderingMode(.monochrome)
-                .foregroundStyle(.primary)
+        HStack(spacing: 4) {
+            ZStack(alignment: .topTrailing) {
+                Image(systemName: "internaldrive.fill")
+                    .font(.system(size: 14, weight: .medium))
 
-            Circle()
-                .fill(viewModel.healthStatus.color)
-                .frame(width: 7, height: 7)
-                .overlay(Circle().strokeBorder(Color(nsColor: .windowBackgroundColor), lineWidth: 1.5))
-                .offset(x: 5, y: -5)
+                if viewModel.health != .healthy {
+                    Circle()
+                        .fill(viewModel.health.color)
+                        .frame(width: 6, height: 6)
+                        .offset(x: 3, y: -2)
+                }
+            }
+
+            if viewModel.showFreeSpaceInMenuBar, viewModel.volume.totalCapacity > 0 {
+                Text(viewModel.menuBarTitle)
+                    .font(.system(size: 12, weight: .medium))
+                    .monospacedDigit()
+            }
         }
-        .frame(width: 22, height: 18)
-        .help(viewModel.menuBarTitle)
-        .accessibilityLabel("DiskPilot, \(viewModel.menuBarTitle)")
+        .accessibilityLabel("DiskPilot, \(viewModel.menuBarTitle) free")
     }
 }

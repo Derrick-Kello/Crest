@@ -17,6 +17,6 @@ struct DockerStats {
         imagesSize + containersSize + volumesSize
     }
 
-    var formattedTotal: String { DiskUsageModel.formatBytes(totalSize) }
-    var formattedReclaimable: String { DiskUsageModel.formatBytes(reclaimableSize) }
+    var formattedTotal: String { ByteFormat.string(totalSize) }
+    var formattedReclaimable: String { ByteFormat.string(reclaimableSize) }
 }

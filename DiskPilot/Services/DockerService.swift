@@ -5,7 +5,7 @@
 
 import Foundation
 
-final class DockerService: Sendable {
+nonisolated final class DockerService: Sendable {
     static let shared = DockerService()
 
     func fetchStats() async -> DockerStats {

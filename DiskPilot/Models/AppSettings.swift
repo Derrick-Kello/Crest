@@ -4,48 +4,146 @@
 //
 
 import Foundation
+import OSLog
+import ServiceManagement
 
-enum CleanupSafetyLevel: String, CaseIterable, Identifiable, Codable {
-    case conservative = "Conservative"
-    case balanced = "Balanced"
-    case aggressive = "Aggressive"
+/// Thin, typed wrapper over `UserDefaults`. Every property reads and writes on
+/// access — there is no in-memory mirror to fall out of sync with what's on disk.
+enum Preferences {
+    private static let defaults = UserDefaults.standard
+    private static let logger = Logger(subsystem: "com.diskpilot", category: "Settings")
+
+    private enum Key {
+        static let showFreeSpace = "showFreeSpaceInMenuBar"
+        static let dockerEnabled = "dockerEnabled"
+        static let policy = "cleanerPolicy"
+        static let collapsedSections = "collapsedPanelSections"
+        static let clipboardEnabled = "clipboardEnabled"
+        static let colorFormat = "colorFormat"
+        static let colorBareHex = "colorBareHex"
+        static let recentColors = "recentColors"
+        static let commandBarEnabled = "commandBarEnabled"
+        static let commandBarHotKey = "commandBarHotKey"
+        static let menuBarMetric = "menuBarMetric"
+    }
+
+    static var clipboardEnabled: Bool {
+        get { defaults.object(forKey: Key.clipboardEnabled) as? Bool ?? true }
+        set { defaults.set(newValue, forKey: Key.clipboardEnabled) }
+    }
+
+    static var colorFormat: ColorFormat {
+        get { ColorFormat(rawValue: defaults.string(forKey: Key.colorFormat) ?? "") ?? .hex }
+        set { defaults.set(newValue.rawValue, forKey: Key.colorFormat) }
+    }
+
+    static var colorBareHex: Bool {
+        get { defaults.bool(forKey: Key.colorBareHex) }
+        set { defaults.set(newValue, forKey: Key.colorBareHex) }
+    }
+
+    static var recentColors: [PickedColor] {
+        get { decode([PickedColor].self, forKey: Key.recentColors) ?? [] }
+        set { encode(newValue, forKey: Key.recentColors) }
+    }
+
+    static var commandBarEnabled: Bool {
+        get { defaults.object(forKey: Key.commandBarEnabled) as? Bool ?? true }
+        set { defaults.set(newValue, forKey: Key.commandBarEnabled) }
+    }
+
+    static var commandBarHotKey: HotKeyCombo {
+        get { decode(HotKeyCombo.self, forKey: Key.commandBarHotKey) ?? .default }
+        set { encode(newValue, forKey: Key.commandBarHotKey) }
+    }
+
+    /// What the menu-bar item shows next to the icon.
+    static var menuBarMetric: MenuBarMetric {
+        get { MenuBarMetric(rawValue: defaults.string(forKey: Key.menuBarMetric) ?? "") ?? .freeSpace }
+        set { defaults.set(newValue.rawValue, forKey: Key.menuBarMetric) }
+    }
+
+    private static func decode<T: Decodable>(_ type: T.Type, forKey key: String) -> T? {
+        guard let data = defaults.data(forKey: key) else { return nil }
+        return try? JSONDecoder().decode(type, from: data)
+    }
+
+    private static func encode(_ value: some Encodable, forKey key: String) {
+        guard let data = try? JSONEncoder().encode(value) else { return }
+        defaults.set(data, forKey: key)
+    }
+
+    static var showFreeSpaceInMenuBar: Bool {
+        get { defaults.object(forKey: Key.showFreeSpace) as? Bool ?? true }
+        set { defaults.set(newValue, forKey: Key.showFreeSpace) }
+    }
+
+    static var dockerEnabled: Bool {
+        get { defaults.object(forKey: Key.dockerEnabled) as? Bool ?? true }
+        set { defaults.set(newValue, forKey: Key.dockerEnabled) }
+    }
+
+    static var policy: CleanerPolicy {
+        get {
+            guard let data = defaults.data(forKey: Key.policy),
+                  let decoded = try? JSONDecoder().decode(CleanerPolicy.self, from: data)
+            else { return .default }
+            return decoded
+        }
+        set {
+            guard let data = try? JSONEncoder().encode(newValue) else { return }
+            defaults.set(data, forKey: Key.policy)
+        }
+    }
+
+    static var collapsedSections: Set<PanelSection> {
+        get {
+            let raw = defaults.stringArray(forKey: Key.collapsedSections) ?? []
+            return Set(raw.compactMap(PanelSection.init(rawValue:)))
+        }
+        set { defaults.set(newValue.map(\.rawValue), forKey: Key.collapsedSections) }
+    }
+
+    /// Backed by the login-item registration itself rather than a stored flag, so
+    /// the toggle reflects reality even if the user changed it in System Settings.
+    static var launchAtLogin: Bool {
+        get { SMAppService.mainApp.status == .enabled }
+        set {
+            do {
+                if newValue {
+                    try SMAppService.mainApp.register()
+                } else {
+                    try SMAppService.mainApp.unregister()
+                }
+            } catch {
+                logger.error("Login item update failed: \(error.localizedDescription, privacy: .public)")
+            }
+        }
+    }
+}
+
+/// The figure shown in the menu bar. Only one fits without crowding the bar, so
+/// it is a choice rather than a row of gauges.
+enum MenuBarMetric: String, CaseIterable, Identifiable, Codable, Sendable {
+    case freeSpace = "Free space"
+    case cpu = "CPU"
+    case memory = "Memory"
+    case battery = "Battery"
+    case none = "Icon only"
 
     var id: String { rawValue }
 }
 
-enum AppSettingsStorage {
-    private enum Keys {
-        static let menuBarEnabled = "menuBarEnabled"
-        static let autoScanInterval = "autoScanInterval"
-        static let safetyLevel = "safetyLevel"
-        static let dockerEnabled = "dockerEnabled"
-    }
+/// Retained from the previous design because the disk ring and menu-bar tint both
+/// key off it.
+enum DiskHealthStatus: Equatable {
+    case healthy
+    case moderate
+    case critical
 
-    static func load() -> (
-        menuBarEnabled: Bool,
-        autoScanIntervalSeconds: Int,
-        safetyLevel: CleanupSafetyLevel,
-        dockerIntegrationEnabled: Bool
-    ) {
-        let defaults = UserDefaults.standard
-        let menuBarEnabled = defaults.object(forKey: Keys.menuBarEnabled) as? Bool ?? true
-        let autoScanIntervalSeconds = defaults.object(forKey: Keys.autoScanInterval) as? Int ?? 300
-        let levelRaw = defaults.string(forKey: Keys.safetyLevel) ?? CleanupSafetyLevel.balanced.rawValue
-        let safetyLevel = CleanupSafetyLevel(rawValue: levelRaw) ?? .balanced
-        let dockerIntegrationEnabled = defaults.object(forKey: Keys.dockerEnabled) as? Bool ?? true
-        return (menuBarEnabled, autoScanIntervalSeconds, safetyLevel, dockerIntegrationEnabled)
-    }
-
-    static func save(
-        menuBarEnabled: Bool,
-        autoScanIntervalSeconds: Int,
-        safetyLevel: CleanupSafetyLevel,
-        dockerIntegrationEnabled: Bool
-    ) {
-        let defaults = UserDefaults.standard
-        defaults.set(menuBarEnabled, forKey: Keys.menuBarEnabled)
-        defaults.set(autoScanIntervalSeconds, forKey: Keys.autoScanInterval)
-        defaults.set(safetyLevel.rawValue, forKey: Keys.safetyLevel)
-        defaults.set(dockerIntegrationEnabled, forKey: Keys.dockerEnabled)
+    static func fromFreePercentage(_ freePercentage: Double) -> Self {
+        if freePercentage > 20 { return .healthy }
+        if freePercentage > 10 { return .moderate }
+        return .critical
     }
 }
