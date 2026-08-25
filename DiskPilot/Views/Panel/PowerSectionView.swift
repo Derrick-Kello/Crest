@@ -71,7 +71,7 @@ struct PowerSectionView: View {
                 PanelRow(title: "Capacity vs new", iconName: "heart") {
                     HStack(spacing: 5) {
                         // Apple treats below 80% as "Service Recommended", so that
-                        // is where the colour changes rather than at an invented mark.
+                        // is where the color changes rather than at an invented mark.
                         Text("\(health)%")
                             .font(.system(size: 11, weight: .medium))
                             .monospacedDigit()

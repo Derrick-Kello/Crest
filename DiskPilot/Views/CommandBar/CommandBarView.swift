@@ -33,12 +33,21 @@ struct CommandBarView: View {
             RoundedRectangle(cornerRadius: 14)
                 .strokeBorder(.white.opacity(0.12), lineWidth: 1)
         )
-        .onAppear {
-            refresh()
+        .onAppear { refresh() }
+        .task {
+            // The panel is made key *after* this view is installed in it, and a
+            // focus request made before the window is key gets dropped on the
+            // floor — which left the bar visibly open but ignoring every keystroke.
+            // Asking again on the next runloop pass lands it.
+            try? await Task.sleep(for: .milliseconds(60))
             isFieldFocused = true
         }
         .onChange(of: query) { _, _ in refresh() }
         .onChange(of: results.count) { _, _ in reportHeight() }
+        // The index is built in the background, so results have to be recomputed
+        // when it lands — otherwise the first search shows nothing until you type
+        // another character.
+        .onChange(of: CommandBarService.shared.indexGeneration) { _, _ in refresh() }
     }
 
     private var field: some View {
@@ -116,7 +125,7 @@ struct CommandBarView: View {
     @ViewBuilder
     private func icon(for entry: CommandEntry) -> some View {
         if let path = entry.iconPath {
-            Image(nsImage: NSWorkspace.shared.icon(forFile: path))
+            Image(nsImage: CommandBarService.shared.icon(forApp: path))
                 .resizable()
                 .frame(width: 22, height: 22)
         } else {

@@ -23,7 +23,10 @@ struct DiskPilotApp: App {
                 .task {
                     // `openWindow` only exists inside a scene, so the view model is
                     // handed a closure here rather than reaching for a window itself.
-                    viewModel.applicationDidLaunch(openReview: { openWindow(id: "review") })
+                    viewModel.applicationDidLaunch(
+                        openReview: { openWindow(id: "review") },
+                        openUninstaller: { openWindow(id: "uninstall") }
+                    )
                 }
         }
         .menuBarExtraStyle(.window)
@@ -35,6 +38,15 @@ struct DiskPilotApp: App {
                 .environment(viewModel)
         }
         .defaultSize(width: 760, height: 540)
+        .commandsRemoved()
+
+        // Same reasoning as the review window: opened on demand, never at launch,
+        // and only one of it however many times the shortcut is pressed.
+        Window("Uninstall an app", id: "uninstall") {
+            UninstallerView()
+                .environment(viewModel)
+        }
+        .defaultSize(width: 680, height: 520)
         .commandsRemoved()
 
         Settings {

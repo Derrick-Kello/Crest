@@ -14,7 +14,7 @@ struct MenuBarIconLabel: View {
     var body: some View {
         HStack(spacing: 4) {
             ZStack(alignment: .topTrailing) {
-                Image(systemName: "internaldrive.fill")
+                Image(systemName: viewModel.menuBarIcon.symbolName)
                     .font(.system(size: 14, weight: .medium))
 
                 if viewModel.health != .healthy {

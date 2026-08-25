@@ -1,2 +1,9 @@
 .derivedData/
 .icon-venv/
+
+# Release artefacts from packaging/release.sh
+.release/
+packaging/release.env
+
+# Separate repo, pushed on its own
+packaging/homebrew-tap/
