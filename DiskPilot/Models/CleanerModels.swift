@@ -164,7 +164,7 @@ struct CleanerRemovalReport: Sendable {
     }
 }
 
-enum ByteFormat {
+nonisolated enum ByteFormat {
     /// Decimal units, matching what Finder and About This Mac report. The old
     /// binary-unit formatter disagreed with the Finder figure next to it, which
     /// reads as a bug even when the math is right.

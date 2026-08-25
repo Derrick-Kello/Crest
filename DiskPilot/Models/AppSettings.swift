@@ -16,8 +16,9 @@ enum Preferences {
     private enum Key {
         static let showFreeSpace = "showFreeSpaceInMenuBar"
         static let dockerEnabled = "dockerEnabled"
+        static let homebrewEnabled = "homebrewEnabled"
         static let policy = "cleanerPolicy"
-        static let collapsedSections = "collapsedPanelSections"
+        static let selectedSection = "selectedPanelSection"
         static let clipboardEnabled = "clipboardEnabled"
         static let colorFormat = "colorFormat"
         static let colorBareHex = "colorBareHex"
@@ -25,6 +26,8 @@ enum Preferences {
         static let commandBarEnabled = "commandBarEnabled"
         static let commandBarHotKey = "commandBarHotKey"
         static let menuBarMetric = "menuBarMetric"
+        static let menuBarIcon = "menuBarIcon"
+        static let launchHistory = "commandBarLaunchHistory"
     }
 
     static var clipboardEnabled: Bool {
@@ -63,6 +66,18 @@ enum Preferences {
         set { defaults.set(newValue.rawValue, forKey: Key.menuBarMetric) }
     }
 
+    /// The glyph shown in the menu bar.
+    static var menuBarIcon: MenuBarIcon {
+        get { MenuBarIcon(rawValue: defaults.string(forKey: Key.menuBarIcon) ?? "") ?? .drive }
+        set { defaults.set(newValue.rawValue, forKey: Key.menuBarIcon) }
+    }
+
+    /// What the command bar has learned about which apps you actually open.
+    static var launchHistory: LaunchHistory {
+        get { decode(LaunchHistory.self, forKey: Key.launchHistory) ?? LaunchHistory() }
+        set { encode(newValue, forKey: Key.launchHistory) }
+    }
+
     private static func decode<T: Decodable>(_ type: T.Type, forKey key: String) -> T? {
         guard let data = defaults.data(forKey: key) else { return nil }
         return try? JSONDecoder().decode(type, from: data)
@@ -83,6 +98,11 @@ enum Preferences {
         set { defaults.set(newValue, forKey: Key.dockerEnabled) }
     }
 
+    static var homebrewEnabled: Bool {
+        get { defaults.object(forKey: Key.homebrewEnabled) as? Bool ?? true }
+        set { defaults.set(newValue, forKey: Key.homebrewEnabled) }
+    }
+
     static var policy: CleanerPolicy {
         get {
             guard let data = defaults.data(forKey: Key.policy),
@@ -96,12 +116,9 @@ enum Preferences {
         }
     }
 
-    static var collapsedSections: Set<PanelSection> {
-        get {
-            let raw = defaults.stringArray(forKey: Key.collapsedSections) ?? []
-            return Set(raw.compactMap(PanelSection.init(rawValue:)))
-        }
-        set { defaults.set(newValue.map(\.rawValue), forKey: Key.collapsedSections) }
+    static var selectedSection: PanelSection {
+        get { PanelSection(rawValue: defaults.string(forKey: Key.selectedSection) ?? "") ?? .system }
+        set { defaults.set(newValue.rawValue, forKey: Key.selectedSection) }
     }
 
     /// Backed by the login-item registration itself rather than a stored flag, so
@@ -132,6 +149,35 @@ enum MenuBarMetric: String, CaseIterable, Identifiable, Codable, Sendable {
     case none = "Icon only"
 
     var id: String { rawValue }
+}
+
+/// Menu-bar glyph options. Deliberately a fixed set of SF Symbols rather than a
+/// free-form field: they are all template images that render correctly in both
+/// menu-bar appearances and at the same optical weight as Apple's own items.
+enum MenuBarIcon: String, CaseIterable, Identifiable, Codable, Sendable {
+    case drive = "Drive"
+    case gauge = "Gauge"
+    case chart = "Chart"
+    case sparkle = "Sparkle"
+    case bolt = "Bolt"
+    case circle = "Rings"
+    case broom = "Cleanup"
+    case cpu = "Chip"
+
+    var id: String { rawValue }
+
+    var symbolName: String {
+        switch self {
+        case .drive: "internaldrive.fill"
+        case .gauge: "gauge.with.dots.needle.67percent"
+        case .chart: "chart.bar.fill"
+        case .sparkle: "sparkles"
+        case .bolt: "bolt.fill"
+        case .circle: "circle.dotted.circle"
+        case .broom: "wand.and.sparkles"
+        case .cpu: "cpu.fill"
+        }
+    }
 }
 
 /// Retained from the previous design because the disk ring and menu-bar tint both

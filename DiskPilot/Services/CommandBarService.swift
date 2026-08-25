@@ -53,61 +53,54 @@ struct CommandEntry: Identifiable, Sendable {
 
 /// Builds and searches the command bar catalog.
 ///
-/// The app list is the only expensive part, so it is gathered once on a background
-/// task and cached; typing then filters an in-memory array and never touches disk.
+/// The index is built once in the background at app launch — not on first open,
+/// which used to mean the very first search returned nothing at all — and every
+/// keystroke afterwards is pure in-memory matching.
 @MainActor
 @Observable
 final class CommandBarService {
     static let shared = CommandBarService()
 
-    private(set) var apps: [InstalledApp] = []
-    private var hasLoadedApps = false
+    private(set) var apps: [IndexedApp] = []
+    /// Bumped whenever the index changes so the view can re-run its query; the
+    /// results used to be computed once and never refreshed when the scan landed.
+    private(set) var indexGeneration = 0
+    private(set) var isIndexing = false
 
-    struct InstalledApp: Sendable {
-        let name: String
-        let path: String
-        let lowercaseName: String
-    }
+    private var history = Preferences.launchHistory
+    private var iconCache: [String: NSImage] = [:]
+    private var indexTask: Task<Void, Never>?
 
     private init() {}
 
-    func loadAppsIfNeeded() async {
-        guard !hasLoadedApps else { return }
-        hasLoadedApps = true
-        apps = await Self.scanApps()
+    // MARK: - Index
+
+    /// Safe to call repeatedly; the scan runs once unless `force` is set.
+    func buildIndex(force: Bool = false) {
+        if !force, !apps.isEmpty || isIndexing { return }
+        indexTask?.cancel()
+        isIndexing = true
+
+        indexTask = Task { [weak self] in
+            let scanned = await Task.detached(priority: .userInitiated) { AppIndex.scan() }.value
+            guard !Task.isCancelled, let self else { return }
+            self.apps = scanned
+            self.iconCache.removeAll()
+            self.indexGeneration += 1
+            self.isIndexing = false
+        }
     }
 
-    /// Refreshes the cache — apps get installed while the app is running.
-    func reloadApps() async {
-        apps = await Self.scanApps()
-    }
-
-    private static func scanApps() async -> [InstalledApp] {
-        await Task.detached(priority: .utility) {
-            let roots = [
-                "/Applications",
-                "/System/Applications",
-                "/System/Applications/Utilities",
-                "/Applications/Utilities",
-                FileManager.default.homeDirectoryForCurrentUser.appending(path: "Applications").path,
-            ]
-            var found: [String: InstalledApp] = [:]
-
-            for root in roots {
-                guard let entries = try? FileManager.default.contentsOfDirectory(
-                    at: URL(fileURLWithPath: root),
-                    includingPropertiesForKeys: nil,
-                    options: [.skipsHiddenFiles]
-                ) else { continue }
-
-                for url in entries where url.pathExtension == "app" {
-                    let name = url.deletingPathExtension().lastPathComponent
-                    // Keyed by name so the same app in two roots appears once.
-                    found[name] = InstalledApp(name: name, path: url.path, lowercaseName: name.lowercased())
-                }
-            }
-            return found.values.sorted { $0.name < $1.name }
-        }.value
+    /// Icons come from `NSWorkspace`, which hits the disk. The command bar draws
+    /// up to a dozen rows per keystroke, so each one is fetched at most once.
+    func icon(forApp path: String) -> NSImage {
+        if let cached = iconCache[path] { return cached }
+        let icon = NSWorkspace.shared.icon(forFile: path)
+        icon.size = NSSize(width: 22, height: 22)
+        // Bounded: an index of a few hundred apps is fine, but never unbounded.
+        if iconCache.count > 400 { iconCache.removeAll() }
+        iconCache[path] = icon
+        return icon
     }
 
     // MARK: - Search
@@ -116,57 +109,95 @@ final class CommandBarService {
         let trimmed = query.trimmingCharacters(in: .whitespaces)
         guard !trimmed.isEmpty else { return defaultEntries() }
 
+        let needle = trimmed.lowercased()
         var entries: [CommandEntry] = []
 
         if let answer = Self.evaluateExpression(trimmed) {
             entries.append(CommandEntry(
                 id: "math", title: answer, subtitle: "\(trimmed) — press ↩ to copy",
-                kind: .math, score: 10_000
+                kind: .math, score: 100_000
             ))
         }
 
-        let needle = trimmed.lowercased()
-
         for app in apps {
-            guard let score = Self.fuzzyScore(needle: needle, haystack: app.lowercaseName) else { continue }
+            guard let base = AppIndex.score(
+                query: needle, candidate: app.lowercaseName, initials: app.initials
+            ) else { continue }
             entries.append(CommandEntry(
-                id: "app:" + app.path, title: app.name, subtitle: "Application",
-                kind: .app, iconPath: app.path, score: score
+                id: "app:" + app.path,
+                title: app.name,
+                subtitle: subtitle(for: app),
+                kind: .app,
+                iconPath: app.path,
+                score: base + history.boost(for: "app:" + app.path)
             ))
         }
 
         for action in Self.actions {
-            guard let score = Self.fuzzyScore(needle: needle, haystack: action.title.lowercased()) else { continue }
+            guard let base = AppIndex.score(
+                query: needle,
+                candidate: action.title.lowercased(),
+                initials: AppIndex.initials(of: action.title)
+            ) else { continue }
             entries.append(CommandEntry(
                 id: action.id, title: action.title, subtitle: action.subtitle,
-                kind: .action, score: score + 200
+                kind: .action, score: base + 400 + history.boost(for: action.id)
             ))
         }
 
         for entry in ClipboardService.shared.entries.prefix(40) {
-            guard let score = Self.fuzzyScore(needle: needle, haystack: entry.preview.lowercased()) else { continue }
+            let preview = entry.preview.lowercased()
+            guard let base = AppIndex.score(query: needle, candidate: preview, initials: "") else { continue }
             entries.append(CommandEntry(
                 id: "clip:" + entry.id.uuidString, title: entry.preview,
-                subtitle: "Clipboard — press ↩ to copy", kind: .clipboard, score: score
+                subtitle: "Clipboard — press ↩ to copy", kind: .clipboard,
+                score: base / 2
             ))
         }
 
-        return entries
-            .sorted {
-                $0.score != $1.score
-                    ? $0.score > $1.score
-                    : ($0.kind.priority != $1.kind.priority
-                        ? $0.kind.priority < $1.kind.priority
-                        : $0.title < $1.title)
-            }
-            .prefix(12)
-            .map { $0 }
+        return Array(entries.sorted(by: Self.rank).prefix(12))
     }
 
+    /// Vendor-foldered apps are ambiguous by name alone, so the subtitle carries
+    /// the containing folder rather than a flat "Application" for everything.
+    private func subtitle(for app: IndexedApp) -> String {
+        let parent = URL(fileURLWithPath: app.path).deletingLastPathComponent()
+        let folder = parent.lastPathComponent
+        return folder == "Applications" ? "Application" : "Application — \(folder)"
+    }
+
+    private static func rank(_ lhs: CommandEntry, _ rhs: CommandEntry) -> Bool {
+        if lhs.score != rhs.score { return lhs.score > rhs.score }
+        if lhs.kind.priority != rhs.kind.priority { return lhs.kind.priority < rhs.kind.priority }
+        return lhs.title < rhs.title
+    }
+
+    /// Empty query: the apps you launch most, then the built-in actions — the same
+    /// bet a launcher makes that you are usually reaching for something familiar.
     private func defaultEntries() -> [CommandEntry] {
-        Self.actions.map {
-            CommandEntry(id: $0.id, title: $0.title, subtitle: $0.subtitle, kind: .action)
+        var entries: [CommandEntry] = []
+
+        let frequentIDs = history.topIdentifiers(limit: 5)
+        for id in frequentIDs where id.hasPrefix("app:") {
+            let path = String(id.dropFirst(4))
+            guard let app = apps.first(where: { $0.path == path }) else { continue }
+            entries.append(CommandEntry(
+                id: id, title: app.name, subtitle: "Recent", kind: .app,
+                iconPath: app.path, score: history.boost(for: id)
+            ))
         }
+
+        entries.append(contentsOf: Self.actions.map {
+            CommandEntry(id: $0.id, title: $0.title, subtitle: $0.subtitle, kind: .action)
+        })
+        return entries
+    }
+
+    /// Called after something is run, so the ranking learns.
+    func recordUse(_ entry: CommandEntry) {
+        guard entry.kind == .app || entry.kind == .action else { return }
+        history.record(entry.id)
+        Preferences.launchHistory = history
     }
 
     struct Action: Sendable {
@@ -179,45 +210,16 @@ final class CommandBarService {
         Action(id: "action:scan", title: "Scan for junk", subtitle: "Run the cleaner"),
         Action(id: "action:review", title: "Review cleanable items", subtitle: "Open the review window"),
         Action(id: "action:keepawake", title: "Toggle Keep Awake", subtitle: "Prevent or allow sleep"),
-        Action(id: "action:color", title: "Pick a colour", subtitle: "Sample a colour from the screen"),
+        Action(id: "action:color", title: "Pick a color", subtitle: "Sample a color from the screen"),
         Action(id: "action:clipboard", title: "Clipboard history", subtitle: "Show recent copies"),
         Action(id: "action:emptytrash", title: "Open Trash", subtitle: "Reveal the Trash in Finder"),
+        Action(id: "action:uninstall", title: "Uninstall an app", subtitle: "Remove an app and its leftovers"),
+        Action(id: "action:network", title: "Network activity", subtitle: "Live speed and which apps are using it"),
+        Action(id: "action:brewupdate", title: "Update Homebrew packages", subtitle: "Runs brew upgrade"),
+        Action(id: "action:brewcleanup", title: "Reclaim Homebrew space", subtitle: "Runs brew cleanup"),
     ]
 
-    // MARK: - Matching
-
-    /// Subsequence match with a bonus for consecutive hits and word starts, so
-    /// "ac" ranks Activity Monitor above Mail (m-a-i-**l**… no) and "sysp" finds
-    /// System Preferences. Returns nil when the needle isn't a subsequence at all.
-    static func fuzzyScore(needle: String, haystack: String) -> Int? {
-        guard !needle.isEmpty else { return 0 }
-        if haystack == needle { return 1_000 }
-        if haystack.hasPrefix(needle) { return 800 + max(0, 100 - haystack.count) }
-
-        var score = 0
-        var streak = 0
-        var haystackIndex = haystack.startIndex
-        var previousWasSeparator = true
-
-        for character in needle {
-            var matched = false
-            while haystackIndex < haystack.endIndex {
-                let current = haystack[haystackIndex]
-                haystackIndex = haystack.index(after: haystackIndex)
-                if current == character {
-                    streak += 1
-                    score += 10 + streak * 2 + (previousWasSeparator ? 15 : 0)
-                    previousWasSeparator = false
-                    matched = true
-                    break
-                }
-                streak = 0
-                previousWasSeparator = current == " " || current == "-" || current == "_"
-            }
-            guard matched else { return nil }
-        }
-        return score
-    }
+    // MARK: - Maths
 
     /// Evaluates arithmetic typed into the bar.
     ///

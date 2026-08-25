@@ -13,11 +13,13 @@ enum PanelSection: String, CaseIterable, Identifiable, Codable {
     case system = "System"
     case disk = "Disk"
     case cleaner = "Cleaner"
+    case network = "Network"
     case power = "Power"
     case tools = "Tools"
     case clipboard = "Clipboard"
     case largeFolders = "Large folders"
     case docker = "Docker"
+    case homebrew = "Homebrew"
 
     var id: String { rawValue }
 
@@ -26,11 +28,13 @@ enum PanelSection: String, CaseIterable, Identifiable, Codable {
         case .system: "gauge.with.dots.needle.67percent"
         case .disk: "internaldrive"
         case .cleaner: "sparkles"
+        case .network: "network"
         case .power: "bolt"
         case .tools: "wrench.and.screwdriver"
         case .clipboard: "doc.on.clipboard"
         case .largeFolders: "chart.bar"
         case .docker: "shippingbox"
+        case .homebrew: "cup.and.saucer"
         }
     }
 }
@@ -99,6 +103,9 @@ final class DiskPilotViewModel {
     let keepAwake = KeepAwakeService.shared
     let clipboard = ClipboardService.shared
     let colorPicker = ColorPickerService.shared
+    let network = NetworkService.shared
+    let homebrew = HomebrewService.shared
+    let commandBar = CommandBarService.shared
 
     private var metricsTask: Task<Void, Never>?
 
@@ -110,9 +117,49 @@ final class DiskPilotViewModel {
     var dockerStats = DockerStats()
     var isLoadingDocker = false
 
+    // MARK: - Uninstaller
+
+    var uninstallScan: UninstallScan?
+    var uninstallSelection: Set<String> = []
+    var isScanningApp = false
+    var isUninstalling = false
+    var uninstallReport: UninstallReport?
+
+    var uninstallSelectionCount: Int { uninstallSelection.count }
+
+    var uninstallSelectedBytes: UInt64 {
+        guard let uninstallScan else { return 0 }
+        return uninstallScan.items
+            .filter { uninstallSelection.contains($0.id) }
+            .reduce(0) { $0 + $1.size }
+    }
+
+    var uninstallTargetName: String { uninstallScan?.target.name ?? "The app" }
+
     // MARK: - Chrome
 
-    var collapsedSections: Set<PanelSection> = []
+    /// Which tab is showing. One section at a time replaces the old stack of
+    /// eight collapsible cards: the panel stays one screen tall regardless of how
+    /// much each section has to say, and only the visible section builds any views.
+    var selectedSection: PanelSection = .system {
+        didSet {
+            guard selectedSection != oldValue else { return }
+            Preferences.selectedSection = selectedSection
+            syncMetricsLoop()
+        }
+    }
+
+    /// Docker and Homebrew hide entirely when their integration is off, so the tab
+    /// bar never offers a tab that leads to a disabled feature.
+    var visibleSections: [PanelSection] {
+        PanelSection.allCases.filter { section in
+            switch section {
+            case .docker: dockerIntegrationEnabled
+            case .homebrew: homebrewEnabled
+            default: true
+            }
+        }
+    }
     var showSettings = false
     var statusMessage: String?
     var errorMessage: String?
@@ -127,7 +174,21 @@ final class DiskPilotViewModel {
     var launchAtLogin: Bool { didSet { Preferences.launchAtLogin = launchAtLogin } }
     var showFreeSpaceInMenuBar: Bool { didSet { Preferences.showFreeSpaceInMenuBar = showFreeSpaceInMenuBar } }
     var dockerIntegrationEnabled: Bool { didSet { Preferences.dockerEnabled = dockerIntegrationEnabled } }
-    var menuBarMetric: MenuBarMetric { didSet { Preferences.menuBarMetric = menuBarMetric } }
+    var homebrewEnabled: Bool {
+        didSet {
+            Preferences.homebrewEnabled = homebrewEnabled
+            // Leaving the tab while it is selected would strand the panel on a
+            // section that no longer exists, showing nothing at all.
+            if !homebrewEnabled, selectedSection == .homebrew { selectedSection = .system }
+        }
+    }
+    var menuBarIcon: MenuBarIcon { didSet { Preferences.menuBarIcon = menuBarIcon } }
+    var menuBarMetric: MenuBarMetric {
+        didSet {
+            Preferences.menuBarMetric = menuBarMetric
+            syncMetricsLoop()
+        }
+    }
     var commandBarEnabled: Bool {
         didSet {
             Preferences.commandBarEnabled = commandBarEnabled
@@ -146,11 +207,13 @@ final class DiskPilotViewModel {
         launchAtLogin = Preferences.launchAtLogin
         showFreeSpaceInMenuBar = Preferences.showFreeSpaceInMenuBar
         dockerIntegrationEnabled = Preferences.dockerEnabled
+        homebrewEnabled = Preferences.homebrewEnabled
         menuBarMetric = Preferences.menuBarMetric
+        menuBarIcon = Preferences.menuBarIcon
         commandBarEnabled = Preferences.commandBarEnabled
         commandBarHotKey = Preferences.commandBarHotKey
         policy = Preferences.policy
-        collapsedSections = Preferences.collapsedSections
+        selectedSection = Preferences.selectedSection
         volume = diskService.volumeSnapshot()
         power = PowerService.shared.read()
     }
@@ -159,42 +222,56 @@ final class DiskPilotViewModel {
 
     /// Called once at launch for the things that must work whether or not the panel
     /// has ever been opened — the global shortcut, and the menu-bar figure.
-    func applicationDidLaunch(openReview: @escaping () -> Void) {
+    func applicationDidLaunch(
+        openReview: @escaping () -> Void,
+        openUninstaller: @escaping () -> Void
+    ) {
         guard !hasLaunched else { return }
         hasLaunched = true
         openReviewWindow = openReview
+        openUninstallerWindow = openUninstaller
         CommandBarController.shared.configure { [weak self] entry in
             self?.execute(entry)
         }
         registerCommandBarHotKey()
+        // Indexing apps at launch, off the main actor, so the first press of the
+        // shortcut searches a populated list instead of an empty one.
+        CommandBarService.shared.buildIndex()
         startRefreshLoopIfNeeded()
         // The menu bar can show a live metric, which needs sampling even when the
         // panel is closed. When it shows free space, it doesn't.
-        if menuBarMetric == .cpu || menuBarMetric == .memory {
-            startMetricsLoop()
-        }
+        syncMetricsLoop()
     }
 
     /// Opening the panel refreshes only the volume figure — a resource-value read
     /// that opens no directories. Nothing walks the disk until the user asks.
     func panelDidAppear() {
+        isPanelOpen = true
         volume = diskService.volumeSnapshot()
         power = PowerService.shared.read()
         startRefreshLoopIfNeeded()
-        startMetricsLoop()
+        syncMetricsLoop()
         if dockerIntegrationEnabled, dockerStats.isDockerAvailable == false, !isLoadingDocker {
             Task { await refreshDocker() }
         }
     }
 
-    /// Sampling once a second is only worth doing while someone is looking. When
-    /// the panel closes the loop stops unless the menu bar itself needs a metric —
-    /// otherwise a closed panel would keep waking the CPU forever.
     func panelDidDisappear() {
-        guard menuBarMetric != .cpu, menuBarMetric != .memory else { return }
-        metricsTask?.cancel()
-        metricsTask = nil
-        SystemMetricsService.shared.resetRates()
+        isPanelOpen = false
+        syncMetricsLoop()
+    }
+
+    /// Sampling once a second is only worth doing when something displays the
+    /// result: the System tab while the panel is open, or a menu-bar item set to
+    /// show CPU or memory. With tabs, sitting on any other tab now costs nothing —
+    /// under the old stacked layout the System card was always on screen.
+    private var needsMetricsSampling: Bool {
+        if menuBarMetric == .cpu || menuBarMetric == .memory { return true }
+        return isPanelOpen && selectedSection == .system
+    }
+
+    private func syncMetricsLoop() {
+        needsMetricsSampling ? startMetricsLoop() : stopMetricsLoop()
     }
 
     private func startMetricsLoop() {
@@ -203,11 +280,17 @@ final class DiskPilotViewModel {
         metricsTask = Task { [weak self] in
             while !Task.isCancelled {
                 guard let self else { return }
-                let sample = SystemMetricsService.shared.sample()
-                self.metrics = sample
+                self.metrics = SystemMetricsService.shared.sample()
                 try? await Task.sleep(for: .seconds(1))
             }
         }
+    }
+
+    private func stopMetricsLoop() {
+        guard metricsTask != nil else { return }
+        metricsTask?.cancel()
+        metricsTask = nil
+        SystemMetricsService.shared.resetRates()
     }
 
     private func registerCommandBarHotKey() {
@@ -238,6 +321,8 @@ final class DiskPilotViewModel {
     /// Runs whatever the command bar selected. Apps launch, actions route back into
     /// the app, and anything textual lands on the clipboard.
     func execute(_ entry: CommandEntry) {
+        CommandBarService.shared.recordUse(entry)
+
         switch entry.kind {
         case .app:
             guard let path = entry.iconPath else { return }
@@ -278,11 +363,22 @@ final class DiskPilotViewModel {
         case "action:color":
             Task { await pickColor() }
         case "action:clipboard":
-            collapsedSections.remove(.clipboard)
-            Preferences.collapsedSections = collapsedSections
+            selectedSection = .clipboard
             statusMessage = "Clipboard history is in the panel"
         case "action:emptytrash":
             NSWorkspace.shared.open(FileManager.default.homeDirectoryForCurrentUser.appending(path: ".Trash"))
+        case "action:uninstall":
+            openUninstaller()
+        case "action:network":
+            selectedSection = .network
+        case "action:brewupdate":
+            guard homebrewEnabled else { break }
+            selectedSection = .homebrew
+            Task { await homebrew.upgradeAll() }
+        case "action:brewcleanup":
+            guard homebrewEnabled else { break }
+            selectedSection = .homebrew
+            Task { await homebrew.cleanup() }
         default:
             break
         }
@@ -290,7 +386,9 @@ final class DiskPilotViewModel {
 
     /// Set by the app scene, which is the only place that owns `openWindow`.
     private var openReviewWindow: (() -> Void)?
+    private var openUninstallerWindow: (() -> Void)?
     private var hasLaunched = false
+    private var isPanelOpen = false
 
     private func startRefreshLoopIfNeeded() {
         guard refreshTask == nil else { return }
@@ -450,19 +548,107 @@ final class DiskPilotViewModel {
         statusMessage = before > 0 ? "Docker pruned — \(ByteFormat.string(before)) reclaimable cleared" : "Docker pruned"
     }
 
-    // MARK: - Panel chrome
+    // MARK: - Homebrew
 
-    func isCollapsed(_ section: PanelSection) -> Bool {
-        collapsedSections.contains(section)
+    /// The panel calls this whenever the Homebrew tab appears. A plain refresh is
+    /// skipped when the list is already loaded, because `brew info` on every
+    /// installed package is a subprocess and the answer does not change between
+    /// two glances at the same panel.
+    func refreshHomebrew(force: Bool = false) async {
+        guard homebrewEnabled else { return }
+        if !force, homebrew.availability.isReady, !homebrew.installed.isEmpty { return }
+        await homebrew.refresh()
     }
 
-    func toggleCollapsed(_ section: PanelSection) {
-        if collapsedSections.contains(section) {
-            collapsedSections.remove(section)
+    // MARK: - Uninstaller
+
+    func openUninstaller() {
+        NSApp.activate(ignoringOtherApps: true)
+        openUninstallerWindow?()
+    }
+
+    /// Opens the uninstaller on a specific app, so the command bar and a Finder
+    /// drag land in the same place as picking one from the list.
+    func openUninstaller(for url: URL) {
+        openUninstaller()
+        Task { await chooseAppToUninstall(at: url) }
+    }
+
+    func chooseAppToUninstall(at url: URL) async {
+        guard !isScanningApp, let target = UninstallerService.shared.target(for: url) else { return }
+        isScanningApp = true
+        uninstallReport = nil
+        uninstallScan = nil
+
+        let result = await UninstallerService.shared.scan(target)
+        uninstallScan = result
+        // The app bundle and its own support files start ticked; anything the
+        // scanner is less sure about starts clear, so a hasty click cannot remove
+        // something the user has not looked at.
+        uninstallSelection = Set(result.items.filter { $0.category.selectedByDefault }.map(\.id))
+        isScanningApp = false
+    }
+
+    func isLeftoverSelected(_ item: LeftoverItem) -> Bool {
+        uninstallSelection.contains(item.id)
+    }
+
+    func toggleLeftover(_ item: LeftoverItem) {
+        if uninstallSelection.contains(item.id) {
+            uninstallSelection.remove(item.id)
         } else {
-            collapsedSections.insert(section)
+            uninstallSelection.insert(item.id)
         }
-        Preferences.collapsedSections = collapsedSections
+    }
+
+    func leftoverSelectionState(for category: LeftoverCategory) -> SelectionState {
+        guard let uninstallScan else { return .none }
+        let items = uninstallScan.items(in: category)
+        guard !items.isEmpty else { return .none }
+        let selected = items.filter { uninstallSelection.contains($0.id) }.count
+        if selected == 0 { return .none }
+        return selected == items.count ? .all : .partial
+    }
+
+    func toggleLeftoverCategory(_ category: LeftoverCategory) {
+        guard let uninstallScan else { return }
+        let ids = uninstallScan.items(in: category).map(\.id)
+        if leftoverSelectionState(for: category) == .all {
+            uninstallSelection.subtract(ids)
+        } else {
+            uninstallSelection.formUnion(ids)
+        }
+    }
+
+    func performUninstall() async {
+        guard let uninstallScan, !isUninstalling else { return }
+        let targets = uninstallScan.items.filter { uninstallSelection.contains($0.id) }
+        guard !targets.isEmpty else { return }
+
+        isUninstalling = true
+        // Quitting first matters more than it looks: an app still running rewrites
+        // its preferences as it exits, putting back the file just removed.
+        await UninstallerService.shared.quitIfRunning(uninstallScan.target)
+        let report = await UninstallerService.shared.remove(targets)
+        isUninstalling = false
+
+        uninstallReport = report
+        statusMessage = report.summary
+        volume = diskService.volumeSnapshot()
+        // The command bar's app list still holds the app that was just removed.
+        commandBar.buildIndex(force: true)
+    }
+
+    func resetUninstaller() {
+        uninstallScan = nil
+        uninstallSelection = []
+        uninstallReport = nil
+    }
+
+    // MARK: - Panel chrome
+
+    func select(_ section: PanelSection) {
+        selectedSection = section
     }
 
     func persistPolicy() {

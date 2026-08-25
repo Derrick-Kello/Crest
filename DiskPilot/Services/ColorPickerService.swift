@@ -69,7 +69,7 @@ struct PickedColor: Identifiable, Codable, Sendable, Equatable {
     }
 }
 
-/// Screen colour picking via `NSColorSampler`.
+/// Screen color picking via `NSColorSampler`.
 ///
 /// The system sampler is used deliberately: it is the one path that reads screen
 /// pixels without the app itself holding Screen Recording permission, because the
@@ -96,7 +96,7 @@ final class ColorPickerService {
         recent = Preferences.recentColors
     }
 
-    /// Picks a colour and copies it in the chosen format. Returns the formatted
+    /// Picks a color and copies it in the chosen format. Returns the formatted
     /// string so the caller can show what landed on the clipboard.
     func pick() async -> String? {
         let sampler = NSColorSampler()

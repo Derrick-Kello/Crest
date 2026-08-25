@@ -30,9 +30,32 @@ private struct GeneralSettingsTab: View {
             Section {
                 Toggle("Launch at login", isOn: $viewModel.launchAtLogin)
                 Toggle("Show Docker section", isOn: $viewModel.dockerIntegrationEnabled)
+                Toggle("Show Homebrew section", isOn: $viewModel.homebrewEnabled)
+            } footer: {
+                Text("Homebrew adds package updates and `brew cleanup` to the panel. It appears only when Homebrew is installed in one of its standard locations.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
 
             Section {
+                LabeledContent("Uninstall an app") {
+                    Button("Open") { viewModel.openUninstaller() }
+                }
+            } footer: {
+                Text("Removes an app together with the support files, preferences, containers, caches, logs and startup items it leaves behind. Everything goes to the Trash.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Section {
+                LabeledContent("Menu bar icon") {
+                    HStack(spacing: 4) {
+                        ForEach(MenuBarIcon.allCases) { option in
+                            iconChoice(option)
+                        }
+                    }
+                }
+
                 Picker("Menu bar shows", selection: $viewModel.menuBarMetric) {
                     ForEach(MenuBarMetric.allCases) { Text($0.rawValue).tag($0) }
                 }
@@ -55,6 +78,30 @@ private struct GeneralSettingsTab: View {
         }
         .formStyle(.grouped)
         .padding(.vertical, 8)
+    }
+
+    /// Swatches rather than a menu of names: the icon is the thing being chosen,
+    /// so showing it is both faster to scan and unambiguous.
+    private func iconChoice(_ option: MenuBarIcon) -> some View {
+        let isSelected = viewModel.menuBarIcon == option
+
+        return Button {
+            viewModel.menuBarIcon = option
+        } label: {
+            Image(systemName: option.symbolName)
+                .font(.system(size: 13))
+                .frame(width: 26, height: 24)
+                .foregroundStyle(isSelected ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
+                .background(
+                    RoundedRectangle(cornerRadius: 6)
+                        .fill(isSelected ? AnyShapeStyle(.tint.opacity(0.18)) : AnyShapeStyle(.clear))
+                )
+                .contentShape(.rect)
+        }
+        .buttonStyle(.plain)
+        .help(option.rawValue)
+        .accessibilityLabel(option.rawValue)
+        .accessibilityAddTraits(isSelected ? [.isSelected, .isButton] : .isButton)
     }
 }
 
@@ -169,7 +216,7 @@ private struct ToolsSettingsTab: View {
             }
 
             Section {
-                Picker("Copy colours as", selection: Binding(
+                Picker("Copy colors as", selection: Binding(
                     get: { viewModel.colorPicker.format },
                     set: { viewModel.colorPicker.format = $0 }
                 )) {
@@ -180,7 +227,7 @@ private struct ToolsSettingsTab: View {
                     set: { viewModel.colorPicker.bareHex = $0 }
                 ))
             } header: {
-                Text("Colour picker")
+                Text("Color picker")
             }
         }
         .formStyle(.grouped)

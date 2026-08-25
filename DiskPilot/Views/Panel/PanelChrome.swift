@@ -22,58 +22,84 @@ extension DiskHealthStatus {
     }
 }
 
-/// A collapsible card. Each panel section is one of these, so the whole panel
-/// reads as a stack of equal-weight things the user can open, close, and ignore.
+/// The body of one tab: a title line carrying the section's headline figure, then
+/// its content.
+///
+/// The tab bar above already says which section you are in, so this exists for the
+/// number in the trailing slot — free space, CPU load, battery charge — which is
+/// the thing you came to read. The name stays because an icon alone is ambiguous.
 struct PanelCard<Header: View, Content: View>: View {
     let section: PanelSection
     @ViewBuilder var header: Header
     @ViewBuilder var content: Content
 
-    @Environment(DiskPilotViewModel.self) private var viewModel
-
-    private var isCollapsed: Bool { viewModel.isCollapsed(section) }
-
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Button {
-                withAnimation(.snappy(duration: 0.22)) {
-                    viewModel.toggleCollapsed(section)
-                }
-            } label: {
-                HStack(spacing: 8) {
-                    Image(systemName: section.iconName)
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(.secondary)
-                        .frame(width: 16)
+            HStack(spacing: 8) {
+                Text(section.rawValue)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(.secondary)
 
-                    Text(section.rawValue)
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(.secondary)
+                Spacer(minLength: 8)
 
-                    Spacer(minLength: 8)
-
-                    header
-
-                    Image(systemName: "chevron.down")
-                        .font(.system(size: 9, weight: .bold))
-                        .foregroundStyle(.tertiary)
-                        .rotationEffect(.degrees(isCollapsed ? -90 : 0))
-                }
-                .contentShape(.rect)
+                header
             }
-            .buttonStyle(.plain)
             .padding(.horizontal, PanelMetrics.gutter)
-            .padding(.vertical, 9)
-            .accessibilityLabel("\(section.rawValue) section")
-            .accessibilityHint(isCollapsed ? "Expand" : "Collapse")
+            .padding(.top, 10)
+            .padding(.bottom, 8)
 
-            if !isCollapsed {
-                content
-                    .padding(.horizontal, PanelMetrics.gutter)
-                    .padding(.bottom, PanelMetrics.gutter)
+            content
+                .padding(.horizontal, PanelMetrics.gutter)
+                .padding(.bottom, PanelMetrics.gutter)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(.quaternary.opacity(0.35), in: .rect(cornerRadius: PanelMetrics.cardRadius))
+    }
+}
+
+/// Icon tab bar across the top of the panel.
+///
+/// Icons only: eight labelled tabs will not fit across 360 points without
+/// truncating to nonsense, and the section name is repeated immediately below in
+/// the card header — so the label is never actually missing, just not duplicated
+/// eight times.
+struct PanelTabBar: View {
+    @Environment(DiskPilotViewModel.self) private var viewModel
+
+    var body: some View {
+        HStack(spacing: 2) {
+            ForEach(viewModel.visibleSections) { section in
+                tab(section)
             }
         }
-        .background(.quaternary.opacity(0.35), in: .rect(cornerRadius: PanelMetrics.cardRadius))
+        .padding(.horizontal, 6)
+        .padding(.vertical, 5)
+        .background(.quaternary.opacity(0.28), in: .rect(cornerRadius: 10))
+    }
+
+    private func tab(_ section: PanelSection) -> some View {
+        let isSelected = viewModel.selectedSection == section
+
+        return Button {
+            withAnimation(.snappy(duration: 0.18)) {
+                viewModel.select(section)
+            }
+        } label: {
+            Image(systemName: section.iconName)
+                .font(.system(size: 13, weight: isSelected ? .semibold : .regular))
+                .foregroundStyle(isSelected ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
+                .frame(maxWidth: .infinity)
+                .frame(height: 26)
+                .background(
+                    RoundedRectangle(cornerRadius: 7)
+                        .fill(isSelected ? AnyShapeStyle(.tint.opacity(0.16)) : AnyShapeStyle(.clear))
+                )
+                .contentShape(.rect)
+        }
+        .buttonStyle(.plain)
+        .help(section.rawValue)
+        .accessibilityLabel(section.rawValue)
+        .accessibilityAddTraits(isSelected ? [.isSelected, .isButton] : .isButton)
     }
 }
 

@@ -10,44 +10,36 @@ import SwiftUI
 /// There is no main window and no sidebar. The previous design split one dataset
 /// across seven navigable sections — Overview, Findings, Map, Developer Cleanup —
 /// which meant the user had to know where to look before they could do anything.
-/// Here the sections are stacked, collapsible, and each one owns a single action.
+/// Here one icon tab bar switches between sections, each owning a single job, and
+/// only the selected one is built.
 struct PanelView: View {
     @Environment(DiskPilotViewModel.self) private var viewModel
 
     /// A `ScrollView` reports no useful ideal height, and the menu-bar window sizes
     /// itself to its content — so without measuring, the panel gets clipped to an
-    /// arbitrary height and the lower sections simply vanish. Measuring the stack
-    /// lets the window fit the content until it hits the cap, then scroll.
+    /// arbitrary height and the lower part of a section simply vanishes. Measuring
+    /// lets the window fit the section until it hits the cap, then scroll.
     @State private var contentHeight: CGFloat = 0
 
     private var scrollHeight: CGFloat {
-        min(max(contentHeight, 80), 560)
+        min(max(contentHeight, 60), 520)
     }
 
     var body: some View {
         VStack(spacing: 0) {
             header
 
-            ScrollView {
-                VStack(spacing: 8) {
-                    SystemSectionView()
-                    DiskSectionView()
-                    CleanerSectionView()
-                    PowerSectionView()
-                    ToolsSectionView()
-                    ClipboardSectionView()
-                    LargeFoldersSectionView()
-                    if viewModel.dockerIntegrationEnabled {
-                        DockerSectionView()
-                    }
-                }
+            PanelTabBar()
                 .padding(.horizontal, 10)
-                .padding(.bottom, 10)
-                .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { contentHeight = $0 }
+                .padding(.bottom, 8)
+
+            ScrollView {
+                selectedSection
+                    .padding(.horizontal, 10)
+                    .padding(.bottom, 10)
+                    .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { contentHeight = $0 }
             }
             .scrollBounceBehavior(.basedOnSize)
-            // Grows with content up to a point, then scrolls — a panel that fills
-            // the screen on a machine with a lot of junk is its own kind of bad.
             .frame(height: scrollHeight)
 
             footer
@@ -65,6 +57,24 @@ struct PanelView: View {
             Button("OK") { viewModel.dismissError() }
         } message: {
             Text(viewModel.errorMessage ?? "")
+        }
+    }
+
+    /// Switching tabs replaces the view outright rather than hiding a sibling, so
+    /// an unselected section holds no state and costs nothing.
+    @ViewBuilder
+    private var selectedSection: some View {
+        switch viewModel.selectedSection {
+        case .system: SystemSectionView()
+        case .disk: DiskSectionView()
+        case .cleaner: CleanerSectionView()
+        case .network: NetworkSectionView()
+        case .power: PowerSectionView()
+        case .tools: ToolsSectionView()
+        case .clipboard: ClipboardSectionView()
+        case .largeFolders: LargeFoldersSectionView()
+        case .docker: DockerSectionView()
+        case .homebrew: HomebrewSectionView()
         }
     }
 

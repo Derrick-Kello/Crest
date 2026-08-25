@@ -5,7 +5,7 @@
 
 import SwiftUI
 
-/// Keep Awake, the colour picker, and the command bar — the three things you
+/// Keep Awake, the color picker, and the command bar — the three things you
 /// reach for directly rather than reading.
 struct ToolsSectionView: View {
     @Environment(DiskPilotViewModel.self) private var viewModel
@@ -30,6 +30,8 @@ struct ToolsSectionView: View {
                 colorBlock
                 Divider().padding(.vertical, 1)
                 commandBarBlock
+                Divider().padding(.vertical, 1)
+                uninstallerBlock
             }
         }
     }
@@ -99,7 +101,7 @@ struct ToolsSectionView: View {
         }
     }
 
-    // MARK: - Colour picker
+    // MARK: - Color picker
 
     private var colorBlock: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -110,12 +112,14 @@ struct ToolsSectionView: View {
                     .frame(width: 16)
 
                 VStack(alignment: .leading, spacing: 1) {
-                    Text("Colour picker")
+                    Text("Color picker")
                         .font(.system(size: 12, weight: .medium))
-                    Text(viewModel.lastPickedColor ?? "Sample any pixel on screen")
-                        .font(.system(size: 10))
+                    // Monospaced so a picked value doesn't jitter, but only once
+                    // there is one — the placeholder wraps in monospace at this width.
+                    Text(viewModel.lastPickedColor ?? "Sample a pixel")
+                        .font(.system(size: 10, design: viewModel.lastPickedColor == nil ? .default : .monospaced))
                         .foregroundStyle(.secondary)
-                        .monospaced()
+                        .lineLimit(1)
                 }
 
                 Spacer()
@@ -161,6 +165,35 @@ struct ToolsSectionView: View {
                 }
                 .padding(.leading, 24)
             }
+        }
+    }
+
+    // MARK: - Uninstaller
+
+    private var uninstallerBlock: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "trash.square")
+                .font(.system(size: 12))
+                .foregroundStyle(.secondary)
+                .frame(width: 16)
+
+            VStack(alignment: .leading, spacing: 1) {
+                Text("Uninstaller")
+                    .font(.system(size: 12, weight: .medium))
+                Text("Remove an app and its leftovers")
+                    .font(.system(size: 10))
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer()
+
+            Button {
+                viewModel.openUninstaller()
+            } label: {
+                Text("Open").font(.system(size: 11))
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
         }
     }
 
