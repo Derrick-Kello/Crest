@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Builds, signs, notarises and staples a DiskPilot release, then prints the
+# Builds, signs, notarises and staples a Crest release, then prints the
 # values the Homebrew cask needs.
 #
 #   TEAM_ID=XXXXXXXXXX ./packaging/release.sh 1.0.0
@@ -8,7 +8,7 @@
 # Requires, once per machine:
 #   1. A "Developer ID Application" certificate in the login keychain.
 #   2. A stored notarytool profile:
-#        xcrun notarytool store-credentials diskpilot-notary \
+#        xcrun notarytool store-credentials crest-notary \
 #          --apple-id you@example.com --team-id XXXXXXXXXX
 #      It asks for an app-specific password from appleid.apple.com.
 
@@ -36,14 +36,14 @@ if [[ -z "${TEAM_ID:-}" ]]; then
   exit 78
 fi
 
-NOTARY_PROFILE="${NOTARY_PROFILE:-diskpilot-notary}"
+NOTARY_PROFILE="${NOTARY_PROFILE:-crest-notary}"
 IDENTITY="${IDENTITY:-Developer ID Application}"
 BUILD="$ROOT/.release"
-ARCHIVE="$BUILD/DiskPilot.xcarchive"
+ARCHIVE="$BUILD/Crest.xcarchive"
 EXPORT_DIR="$BUILD/export"
 STAGE="$BUILD/stage"
-DMG="$BUILD/DiskPilot.dmg"
-APP="$EXPORT_DIR/DiskPilot.app"
+DMG="$BUILD/Crest.dmg"
+APP="$EXPORT_DIR/Crest.app"
 PLIST="$BUILD/ExportOptions.plist"
 
 step() { printf '\n\033[1m==> %s\033[0m\n' "$1"; }
@@ -63,8 +63,8 @@ sed "s/REPLACE_WITH_TEAM_ID/$TEAM_ID/" "$ROOT/packaging/ExportOptions.plist" > "
 
 step "Archiving $VERSION"
 xcodebuild archive \
-  -project "$ROOT/DiskPilot.xcodeproj" \
-  -scheme DiskPilot \
+  -project "$ROOT/Crest.xcodeproj" \
+  -scheme Crest \
   -configuration Release \
   -archivePath "$ARCHIVE" \
   -destination 'generic/platform=macOS' \
@@ -83,14 +83,14 @@ xcodebuild -exportArchive \
   -exportOptionsPlist "$PLIST"
 
 step "Checking what came out"
-lipo -archs "$APP/Contents/MacOS/DiskPilot"
+lipo -archs "$APP/Contents/MacOS/Crest"
 codesign -dv --verbose=2 "$APP" 2>&1 | grep -E "Signature|TeamIdentifier|flags"
 codesign --verify --deep --strict --verbose=2 "$APP"
 
 step "Building the disk image"
 cp -R "$APP" "$STAGE/"
 ln -s /Applications "$STAGE/Applications"
-hdiutil create -volname "DiskPilot" -srcfolder "$STAGE" -ov -format UDZO "$DMG" >/dev/null
+hdiutil create -volname "Crest" -srcfolder "$STAGE" -ov -format UDZO "$DMG" >/dev/null
 codesign --sign "$IDENTITY" --timestamp "$DMG"
 
 step "Notarising, this waits for Apple"
@@ -109,6 +109,6 @@ Disk image : $DMG
 sha256     : $SHA
 
 Next:
-  gh release create v$VERSION "$DMG" --title "DiskPilot $VERSION" --notes "..."
+  gh release create v$VERSION "$DMG" --title "Crest $VERSION" --notes "..."
   ./packaging/update-cask.sh $VERSION $SHA
 SUMMARY

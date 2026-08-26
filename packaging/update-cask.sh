@@ -4,7 +4,7 @@ set -euo pipefail
 
 VERSION="${1:?usage: $0 <version> <sha256>}"
 SHA="${2:?usage: $0 <version> <sha256>}"
-CASK="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/homebrew-tap/Casks/diskpilot.rb"
+CASK="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/homebrew-tap/Casks/crest.rb"
 
 /usr/bin/sed -i '' \
   -e "s/^  version \".*\"/  version \"$VERSION\"/" \

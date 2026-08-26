@@ -1,4 +1,4 @@
-# DiskPilot — addups.md Integration Plan
+# Crest — addups.md Integration Plan
 
 **Last validated:** May 28, 2026 (live `du` on your Mac)
 
@@ -10,7 +10,7 @@ Disk space pressure on your Mac is **not only from Xcode/npm**. The largest user
 2. **Developer folder** (~8 GB) — Xcode + CoreSimulator  
 3. **Library/Caches** (~6 GB) — Yarn, browsers, VS Code ShipIt, Spotify, Homebrew  
 
-Caches **regrow after cleanup** when you use those apps. DiskPilot now surfaces ranked findings with risk levels and safe cleanup paths.
+Caches **regrow after cleanup** when you use those apps. Crest now surfaces ranked findings with risk levels and safe cleanup paths.
 
 ---
 
@@ -59,10 +59,10 @@ Caches **regrow after cleanup** when you use those apps. DiskPilot now surfaces 
 
 Configured MCP plugins (Cloudflare, Prisma, Stripe, Box, Granola, Resend) **do not provide macOS disk tools**. Storage truth comes from:
 
-- DiskPilot app (`du`, `simctl`, `docker`, `brew`)  
+- Crest app (`du`, `simctl`, `docker`, `brew`)  
 - Local shell validation (used for this plan)
 
-**Future:** optional `diskpilot-mcp` local server wrapping `DeepScanService` for Cursor agents.
+**Future:** optional `crest-mcp` local server wrapping `DeepScanService` for Cursor agents.
 
 ---
 
@@ -114,7 +114,7 @@ Configured MCP plugins (Cloudflare, Prisma, Stripe, Box, Granola, Resend) **do n
 
 ## How to validate in the app
 
-1. **⌘R** run DiskPilot  
+1. **⌘R** run Crest  
 2. Open **Storage Findings** → **Deep Scan**  
 3. Compare top 5 sizes to terminal:  
    `du -sh ~/Library/Caches/Yarn ~/Library/Developer/CoreSimulator ~/.npm`  
