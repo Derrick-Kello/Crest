@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Deliberately NOT sandboxed: a CGEventTap and system-wide Accessibility both
+	     stop working inside the App Sandbox, so distribution is Developer ID rather
+	     than the Mac App Store. -->
+
+	<!-- Required the moment the hardened runtime is on, which it must be for
+	     notarization. Without it the microphone is refused below the TCC layer: no
+	     prompt appears, and the app never shows up in System Settings ▸ Privacy &
+	     Security ▸ Microphone, because that list only contains apps that have asked.
+	     The symptom reads as "we never ask for the microphone" and the cause is two
+	     layers underneath that. -->
+	<key>com.apple.security.device.audio-input</key>
+	<true/>
+
+	<!-- Saving a meeting transcript out through NSSavePanel. -->
+	<key>com.apple.security.files.user-selected.read-only</key>
+	<true/>
+</dict>
+</plist>
