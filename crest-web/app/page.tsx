@@ -164,15 +164,7 @@ export default function Home() {
           <div className="hero-stripes pointer-events-none absolute inset-x-0 -top-20 h-[460px]" />
 
           <div className="relative mx-auto w-full max-w-[940px] pt-10 pb-16 text-center">
-            <div
-              className="rise mb-7 flex items-center justify-center gap-2"
-              style={{ "--delay": "60ms" } as React.CSSProperties}
-            >
-              <span className="inline-flex items-center gap-2 rounded-full border border-hairline bg-surface px-3 py-1 text-[13px] text-mute">
-                <span className="size-[6px] rounded-full bg-accent-green" />
-                Crest 1.0 for macOS 26
-              </span>
-            </div>
+          
 
             <h1
               className="rise display text-[36px] leading-[1.1] font-semibold text-ink sm:text-[48px] lg:text-[57px]"
