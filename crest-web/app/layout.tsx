@@ -12,11 +12,11 @@ export const metadata: Metadata = {
   metadataBase: new URL("https://crest.app"),
   title: "Crest · Your whole Mac, one click from the menu bar",
   description:
-    "Disk space, system load, battery health, a cleaner that shows its work, Docker, clipboard history and an ⌥Space command bar. One panel, no main window, nothing leaves your Mac.",
+    "Disk space, system load, battery health, network, a cleaner that shows its work, Docker, Homebrew, clipboard history, an ⌥Space command bar and on-device dictation and meeting notes. One panel, no main window, nothing leaves your Mac.",
   openGraph: {
     title: "Crest · Your whole Mac, one click from the menu bar",
     description:
-      "One menu bar panel for storage, system load, battery health, cleanup, Docker and clipboard, plus an ⌥Space command bar.",
+      "One menu bar panel for storage, system load, battery, network, cleanup, Docker and Homebrew, plus an ⌥Space command bar and dictation that runs on your Mac.",
     type: "website",
     siteName: "Crest",
   },

@@ -215,6 +215,99 @@ export function PlusIcon(p: IconProps) {
   );
 }
 
+export function NetworkIcon(p: IconProps) {
+  return (
+    <Svg {...p}>
+      <circle cx="12" cy="12" r="8.5" />
+      <path d="M3.5 12h17M12 3.5c2.4 2.4 3.6 5.3 3.6 8.5S14.4 18.1 12 20.5c-2.4-2.4-3.6-5.3-3.6-8.5S9.6 5.9 12 3.5Z" />
+    </Svg>
+  );
+}
+
+/** A barrel, not a mug: the Keep Awake cup is already a cup. */
+export function KegIcon(p: IconProps) {
+  return (
+    <Svg {...p}>
+      <path d="M7.5 3.5h9c-1 2.6-1.5 5.4-1.5 8.5s.5 5.9 1.5 8.5h-9c1-2.6 1.5-5.4 1.5-8.5s-.5-5.9-1.5-8.5Z" />
+      <path d="M6.6 8h10.8M6.6 16h10.8" />
+    </Svg>
+  );
+}
+
+export function MicIcon(p: IconProps) {
+  return (
+    <Svg {...p}>
+      <rect x="9" y="2.5" width="6" height="11" rx="3" />
+      <path d="M5.5 11.5a6.5 6.5 0 0 0 13 0M12 18v3.5" />
+    </Svg>
+  );
+}
+
+export function WaveformIcon(p: IconProps) {
+  return (
+    <Svg {...p}>
+      <path d="M3.5 11v2M7 8v8M10.5 4.5v15M14 7.5v9M17.5 9.5v5M21 11v2" />
+    </Svg>
+  );
+}
+
+export function BubbleIcon(p: IconProps) {
+  return (
+    <Svg {...p}>
+      <path d="M4 5.5h16v10H9.5L5 19.5v-4H4Z" />
+      <path d="M8 9.5h8M8 12.5h5" />
+    </Svg>
+  );
+}
+
+export function FileSearchIcon(p: IconProps) {
+  return (
+    <Svg {...p}>
+      <path d="M13.5 3.5H7A2 2 0 0 0 5 5.5v13a2 2 0 0 0 2 2h5" />
+      <path d="M13.5 3.5 19 9v2" />
+      <circle cx="16.5" cy="16" r="3.2" />
+      <path d="m19 18.4 2 2" />
+    </Svg>
+  );
+}
+
+export function TagIcon(p: IconProps) {
+  return (
+    <Svg {...p}>
+      <path d="M11.2 3.5H20v8.8l-8.6 8.6a1.6 1.6 0 0 1-2.3 0l-6.5-6.5a1.6 1.6 0 0 1 0-2.3Z" />
+      <circle cx="16.2" cy="7.8" r="1.4" fill="currentColor" stroke="none" />
+    </Svg>
+  );
+}
+
+export function KeyboardIcon(p: IconProps) {
+  return (
+    <Svg {...p}>
+      <rect x="2.5" y="6" width="19" height="12" rx="2.6" />
+      <path d="M6 9.5h.01M9.5 9.5h.01M13 9.5h.01M16.5 9.5h.01M6 12.8h.01M9.5 12.8h.01M13 12.8h.01M16.5 12.8h.01M8 15.6h8" />
+    </Svg>
+  );
+}
+
+export function AppMinusIcon(p: IconProps) {
+  return (
+    <Svg {...p}>
+      <path d="M20.5 11.5V8A4.5 4.5 0 0 0 16 3.5H8A4.5 4.5 0 0 0 3.5 8v8A4.5 4.5 0 0 0 8 20.5h3.5" />
+      <circle cx="17.5" cy="17.5" r="4" />
+      <path d="M15.7 17.5h3.6" />
+    </Svg>
+  );
+}
+
+export function ShieldIcon(p: IconProps) {
+  return (
+    <Svg {...p}>
+      <path d="M12 3 19 5.6v6c0 4.2-2.8 7.4-7 9.4-4.2-2-7-5.2-7-9.4v-6Z" />
+      <path d="m9 12 2.2 2.2L15.5 10" />
+    </Svg>
+  );
+}
+
 export function AppleIcon(p: IconProps) {
   return (
     <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" className={p.className ?? "size-4"}>

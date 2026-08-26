@@ -17,7 +17,9 @@ const columns = [
     title: "Features",
     links: [
       { href: "#cleaner", label: "Cleaner" },
-      { href: "#panel", label: "Docker" },
+      { href: "#voice", label: "Dictation" },
+      { href: "#voice", label: "Meeting notes" },
+      { href: "#panel", label: "Docker and Homebrew" },
       { href: "#panel", label: "Clipboard history" },
       { href: "#panel", label: "Battery health" },
     ],

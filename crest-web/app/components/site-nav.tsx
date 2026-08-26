@@ -5,6 +5,7 @@ import { LogoMark } from "./icons";
 const links = [
   { href: "#panel", label: "Panel" },
   { href: "#command-bar", label: "Command bar" },
+  { href: "#voice", label: "Voice" },
   { href: "#cleaner", label: "Cleaner" },
   { href: "#privacy", label: "Privacy" },
   { href: "#faq", label: "FAQ" },

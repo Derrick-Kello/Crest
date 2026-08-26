@@ -1,11 +1,12 @@
 import {
   AppDashedIcon,
+  AppMinusIcon,
   AppleIcon,
   BatteryIcon,
   BoltIcon,
   BoxIcon,
+  BubbleIcon,
   ChartIcon,
-  CheckIcon,
   ClipboardIcon,
   CupIcon,
   DocIcon,
@@ -13,10 +14,16 @@ import {
   EyedropperIcon,
   GaugeIcon,
   HammerIcon,
+  KegIcon,
+  KeyboardIcon,
   LockIcon,
+  MicIcon,
+  NetworkIcon,
   PhoneIcon,
   SearchIcon,
+  ShieldIcon,
   SparklesIcon,
+  TagIcon,
   TrashIcon,
   WrenchIcon,
 } from "./components/icons";
@@ -27,7 +34,11 @@ import {
   CleanerMock,
   ClipboardMock,
   CommandBarMock,
+  DictationMock,
+  FileSearchMock,
+  MeetingMock,
   ShowcaseMock,
+  VoiceHudMock,
 } from "./components/mockups";
 import { SiteFooter } from "./components/site-footer";
 import { SiteNav } from "./components/site-nav";
@@ -57,6 +68,11 @@ const sections = [
     body: "Six categories of reclaimable space, each with a size and a tick box. Nothing goes until you say so.",
   },
   {
+    icon: NetworkIcon,
+    title: "Network",
+    body: "Up and down rates on one shared sparkline, what this session has moved, and which apps are moving it.",
+  },
+  {
     icon: BoltIcon,
     title: "Power",
     body: "Charge, time left, cycle count, capacity against new, battery temperature and adapter wattage.",
@@ -80,6 +96,21 @@ const sections = [
     icon: BoxIcon,
     title: "Docker",
     body: "Images, containers, volumes and reclaimable space, with a prune that names its own command.",
+  },
+  {
+    icon: KegIcon,
+    title: "Homebrew",
+    body: "What is installed, what has an update waiting, and what the package cache is costing you in disk space.",
+  },
+  {
+    icon: MicIcon,
+    title: "Voice",
+    body: "Which key you hold to dictate, whether the grants are in place, and the last things you said.",
+  },
+  {
+    icon: BubbleIcon,
+    title: "Meetings",
+    body: "Calls you recorded, each with a transcript per speaker and a summary written on this Mac.",
   },
 ];
 
@@ -133,7 +164,15 @@ const faqs = [
   },
   {
     q: "Does it need Accessibility permission?",
-    a: "No. The shortcut is registered with the system hot key API, so macOS delivers that one combination to Crest instead of the app watching every keystroke. Colour picking uses the system sampler, so it does not need Screen Recording either.",
+    a: "Only for dictation. Every shortcut, including ⌥Space, is registered with the system hot key API, so macOS delivers that one combination to Crest instead of the app watching every keystroke. Push to talk cannot work that way: a bare modifier key has no release event to register, so it needs an event tap, and an event tap needs Accessibility. Leave dictation off and Crest never asks.",
+  },
+  {
+    q: "Is anything I dictate or record sent anywhere?",
+    a: "No. Transcription is the speech recogniser in macOS 26, and the cleanup and meeting summaries are Apple's on-device model. Both ship with the OS and both run here. Crest has no server to send audio to.",
+  },
+  {
+    q: "What happens without the screen recording grant?",
+    a: "A meeting still records, but only your side of it, and the recorder says so at the start rather than handing you half a conversation with no explanation. The grant is what lets macOS give Crest the audio coming out of your speakers, which is everyone else on the call.",
   },
   {
     q: "Can I change the shortcut?",
@@ -148,8 +187,8 @@ const faqs = [
     a: "Not yet. Signing and notarisation need a paid Apple Developer ID, which Crest does not have at launch. That is why the install needs an xattr line afterwards, and why the dmg needs an Open Anyway on first run. Both go away once it is notarised.",
   },
   {
-    q: "Do I need Docker?",
-    a: "No. If Docker is not running or the CLI is not on your PATH, the section says so. You can hide it entirely in Settings.",
+    q: "Do I need Docker or Homebrew?",
+    a: "No. If Docker is not running, or the brew CLI is not on your PATH, that section says so instead of showing an empty list. Hide either one in Settings and its tab goes with it.",
   },
 ];
 
@@ -159,9 +198,12 @@ export default function Home() {
       <SiteNav />
 
       <main className="flex-1">
-        {/* Hero. Centred, minimal, and the only place the stripe band appears. */}
-        <section className="relative flex min-h-[86svh] items-center overflow-hidden px-6">
-          <div className="hero-stripes pointer-events-none absolute inset-x-0 -top-20 h-[460px]" />
+        {/* Hero. Centred, minimal, and the only place the stripe band appears.
+            Pulled up under the sticky nav — the nav takes 72px of flow (pt-4 +
+            h-14), and without this the stripe band starts below it, leaving a
+            bare strip of canvas across the top of the page. */}
+        <section className="relative -mt-[72px] flex min-h-[calc(86svh+72px)] items-center overflow-hidden px-6 pt-[72px]">
+          <div className="hero-stripes pointer-events-none absolute inset-x-0 -top-10 h-[460px]" />
 
           <div className="relative mx-auto w-full max-w-[940px] pt-10 pb-16 text-center">
           
@@ -180,7 +222,7 @@ export default function Home() {
               style={{ "--delay": "240ms" } as React.CSSProperties}
             >
               One menu bar panel for storage, system load, battery and cleanup. One shortcut for
-              everything else.
+              everything else, and one key you hold to talk instead of type.
             </p>
 
             <div
@@ -224,8 +266,9 @@ export default function Home() {
         <Section id="panel">
           <SectionHeading
             center
-            title="Eight sections."
+            title="Twelve sections."
             subtitle="Only the one you are looking at does any work."
+            body="Hide the ones you have no use for, and drag the rest into the order you want them in. The tab bar is whatever is left."
           />
 
           <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -294,8 +337,14 @@ export default function Home() {
                 <p className="mt-3 max-w-[420px] text-[15px] leading-[1.6] text-mute">
                   Fuzzy matching across your apps, ranked by what you actually open. The index is
                   built in the background at launch, so the first search is as fast as the
-                  hundredth. Crest actions sit in the same list: quick scan, clean developer
-                  junk, Docker prune, Keep Awake.
+                  hundredth. System Settings panes, sleep and restart, and Crest actions sit in
+                  the same list: quick scan, clean developer junk, Docker prune, start dictation.
+                </p>
+                <p className="mt-3 max-w-[420px] text-[15px] leading-[1.6] text-mute">
+                  Teach it your own names for things, so <span className="text-body">db</span>{" "}
+                  opens the database client and <span className="text-body">t</span> opens the
+                  terminal. An alias matches as a whole word, never fuzzily, so a two letter one
+                  lands on exactly what you meant.
                 </p>
                 <div className="mt-6 flex items-center gap-[6px] text-[13px] text-mute">
                   Rebind it in Settings
@@ -311,7 +360,7 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-4 md:grid-cols-3">
               <div className="reveal">
                 <Card className="h-full">
                   <CalcMock />
@@ -335,6 +384,128 @@ export default function Home() {
                     Search the last 150 things you copied, pin the ones you keep reaching for, and
                     put any of them back on the clipboard.
                   </p>
+                </Card>
+              </div>
+
+              <div className="reveal" style={{ "--stagger": "6%" } as React.CSSProperties}>
+                <Card className="h-full">
+                  <FileSearchMock />
+                  <h3 className="mt-6 text-[20px] leading-[1.2] font-medium text-ink">
+                    Open a file
+                  </h3>
+                  <p className="mt-2 text-[15px] leading-[1.6] text-mute">
+                    Files come from the Spotlight index macOS already keeps, so there is no second
+                    index to build. Six rows at most in a mixed search, the whole list when you
+                    ask for files and nothing else.
+                  </p>
+                </Card>
+              </div>
+            </div>
+          </div>
+        </Section>
+
+        {/* Voice and meetings */}
+        <Section id="voice">
+          <SectionHeading
+            center
+            title="Hold a key and talk."
+            subtitle="The text lands where you were already typing."
+          />
+
+          <div className="mt-12 grid gap-4">
+            <div className="reveal grid overflow-hidden rounded-lg border border-hairline bg-surface lg:grid-cols-2">
+              <div className="p-6 sm:p-10">
+                <span className="flex size-9 items-center justify-center rounded-md bg-card text-body">
+                  <MicIcon className="size-[17px]" />
+                </span>
+                <h3 className="mt-5 text-[22px] leading-[1.15] font-medium text-ink">
+                  Dictation, on this Mac
+                </h3>
+                <p className="mt-3 max-w-[420px] text-[15px] leading-[1.6] text-mute">
+                  Hold the key you picked, say the sentence, let go. Crest tidies the filler and
+                  the spoken punctuation out of it and inserts the result into whatever had focus.
+                  Speech recognition and cleanup both ship with macOS, so nothing is uploaded and
+                  nothing is transcribed by anyone else.
+                </p>
+                <p className="mt-3 max-w-[420px] text-[15px] leading-[1.6] text-mute">
+                  Four styles decide how it reads. Prose writes full sentences, Chat drops the
+                  full stop nobody types in Slack, Code stays lowercase and turns spoken symbols
+                  into real ones, Verbatim changes nothing.
+                </p>
+                <div className="mt-6 flex flex-wrap items-center gap-2">
+                  {["Prose", "Chat", "Code", "Verbatim"].map((style) => (
+                    <span
+                      key={style}
+                      className="rounded-full bg-elevated px-[10px] py-1 text-[13px] text-body"
+                    >
+                      {style}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              <div className="relative flex min-h-[280px] flex-col justify-center gap-5 border-t border-hairline bg-elevated p-6 sm:p-10 lg:border-t-0 lg:border-l">
+                <VoiceHudMock className="self-start" />
+                <DictationMock />
+              </div>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="reveal">
+                <Card className="h-full">
+                  <MeetingMock />
+                  <h3 className="mt-6 text-[20px] leading-[1.2] font-medium text-ink">
+                    Sit in on the call
+                  </h3>
+                  <p className="mt-2 text-[15px] leading-[1.6] text-mute">
+                    Your microphone and the call audio are recorded and transcribed separately, so
+                    the transcript knows who said what without guessing. The summary, its
+                    decisions and its action items are written by the model built into macOS, and
+                    the whole thing exports as Markdown.
+                  </p>
+                </Card>
+              </div>
+
+              <div className="reveal" style={{ "--stagger": "3%" } as React.CSSProperties}>
+                <Card className="h-full">
+                  <div className="space-y-3">
+                    {[
+                      {
+                        icon: TagIcon,
+                        t: "Your vocabulary",
+                        d: "Names, product words and the spellings it keeps getting wrong, in a text file you edit.",
+                      },
+                      {
+                        icon: WrenchIcon,
+                        t: "Rewrite the selection",
+                        d: "Select a paragraph anywhere, hold the command key and say what to do with it.",
+                      },
+                      {
+                        icon: ShieldIcon,
+                        t: "Guarded against helpfulness",
+                        d: "Dictate a question and a model wants to answer it. Anything that introduces a word you never said is thrown away.",
+                      },
+                    ].map(({ icon: Icon, t, d }) => (
+                      <div key={t} className="flex gap-3">
+                        <span className="mt-[1px] flex size-7 shrink-0 items-center justify-center rounded-md bg-card text-body">
+                          <Icon className="size-[15px]" />
+                        </span>
+                        <div>
+                          <p className="text-[14px] font-medium tracking-[0.2px] text-ink">{t}</p>
+                          <p className="mt-1 text-[14px] leading-[1.6] text-mute">{d}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="mt-5 border-t border-hairline pt-4">
+                    <p className="text-[14px] leading-[1.6] text-mute">
+                      Voice is the one part of Crest that needs permissions. Accessibility, so the
+                      held key is seen at all. The microphone. Screen and system audio recording
+                      for the other side of a call, and without it a meeting still records your
+                      half and says so.
+                    </p>
+                  </div>
                 </Card>
               </div>
             </div>
@@ -406,11 +577,26 @@ export default function Home() {
                 t: "Menu bar metric",
                 d: "Show free space, CPU, memory or battery in the menu bar, or just the icon. The panel is one click away either way.",
               },
+              {
+                icon: AppMinusIcon,
+                t: "Uninstaller",
+                d: "Drag an app in, or pick it from the list, and Crest finds the support files, preferences, caches and login items it left behind. Every path is listed before anything moves.",
+              },
+              {
+                icon: KeyboardIcon,
+                t: "Shortcuts of your own",
+                d: "Give an app or a Crest action its own combination. They go through the same system hot key API as ⌥Space, so none of them need Accessibility either.",
+              },
+              {
+                icon: NetworkIcon,
+                t: "Update check",
+                d: "Crest asks GitHub whether a newer release exists and tells you. It never downloads or replaces itself, and the check turns off in Settings.",
+              },
             ].map(({ icon: Icon, t, d }, i) => (
               <div
                 key={t}
                 className="reveal"
-                style={{ "--stagger": `${i * 3}%` } as React.CSSProperties}
+                style={{ "--stagger": `${(i % 3) * 3}%` } as React.CSSProperties}
               >
                 <Card elevated className="h-full">
                   <span className="flex size-9 items-center justify-center rounded-md bg-card text-body">
@@ -439,12 +625,12 @@ export default function Home() {
               {
                 icon: LockIcon,
                 t: "Nothing leaves your Mac",
-                d: "No sign in, no telemetry, no network calls. Scan results live in memory and in your own preferences file.",
+                d: "No sign in, no account, no telemetry. Speech is transcribed and summaries are written by the models built into macOS, so a dictated sentence and a recorded call never reach a server. The one call Crest makes is asking GitHub whether there is a newer version, and that switches off.",
               },
               {
-                icon: CheckIcon,
-                t: "Two permissions it never asks for",
-                d: "The hot key goes through the system API rather than a global keystroke monitor, and the colour picker uses the OS sampler. So no Accessibility, no Screen Recording.",
+                icon: ShieldIcon,
+                t: "Permissions only where the feature needs one",
+                d: "The panel, the cleaner and the command bar ask for nothing: the hot key goes through the system API rather than a keystroke monitor, and the colour picker uses the OS sampler. Dictation is the exception, and it says which grants it wants before you turn it on.",
               },
               {
                 icon: TrashIcon,
@@ -585,6 +771,7 @@ export default function Home() {
                 <Badge>Apple silicon and Intel</Badge>
                 <Badge>Universal build</Badge>
                 <Badge>Launch at login</Badge>
+                <Badge>Apple Intelligence for voice cleanup and summaries</Badge>
                 <Badge>Version 1.0</Badge>
               </div>
             </div>

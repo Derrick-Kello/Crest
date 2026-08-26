@@ -5,16 +5,23 @@ import {
   BatteryIcon,
   BoltIcon,
   BoxIcon,
+  BubbleIcon,
   ChartIcon,
   ClipboardIcon,
   CpuIcon,
   CupIcon,
   DriveIcon,
+  DocIcon,
   EyedropperIcon,
+  FileSearchIcon,
   GaugeIcon,
+  KegIcon,
   LogoMark,
+  MicIcon,
+  NetworkIcon,
   SearchIcon,
   SparklesIcon,
+  WaveformIcon,
   WrenchIcon,
 } from "./icons";
 
@@ -24,11 +31,15 @@ const tabs = [
   { icon: GaugeIcon, label: "System" },
   { icon: DriveIcon, label: "Disk" },
   { icon: SparklesIcon, label: "Cleaner" },
+  { icon: NetworkIcon, label: "Network" },
   { icon: BoltIcon, label: "Power" },
   { icon: WrenchIcon, label: "Tools" },
   { icon: ClipboardIcon, label: "Clipboard" },
   { icon: ChartIcon, label: "Large folders" },
   { icon: BoxIcon, label: "Docker" },
+  { icon: KegIcon, label: "Homebrew" },
+  { icon: MicIcon, label: "Voice" },
+  { icon: BubbleIcon, label: "Meetings" },
 ];
 
 function PanelRow({
@@ -80,11 +91,11 @@ export function PanelMock({ className = "" }: { className?: string }) {
           <span
             key={label}
             title={label}
-            className={`flex h-[26px] flex-1 items-center justify-center rounded-sm ${
+            className={`flex h-[24px] flex-1 items-center justify-center rounded-sm ${
               i === 1 ? "bg-card text-ink" : "text-stone"
             }`}
           >
-            <Icon className="size-[13px]" />
+            <Icon className="size-[12px]" />
           </span>
         ))}
       </div>
@@ -265,8 +276,17 @@ export function ShowcaseMock() {
       <MenuBarStrip />
 
       <div className="stage-glow relative flex flex-col items-center gap-6 px-4 pt-6 pb-8 sm:px-8 lg:flex-row lg:items-start lg:justify-between lg:gap-10 lg:pt-12 lg:pb-14">
-        <div className="drift w-full max-w-[440px] lg:ml-6" style={{ "--delay": "400ms" } as React.CSSProperties}>
-          <CommandBarMock />
+        <div className="w-full max-w-[440px] lg:ml-6">
+          <div className="drift" style={{ "--delay": "400ms" } as React.CSSProperties}>
+            <CommandBarMock />
+          </div>
+          {/* The dictation HUD sits where it does on screen: floating, out of the way. */}
+          <div
+            className="drift mt-6 flex justify-center lg:mt-10 lg:justify-start lg:pl-10"
+            style={{ "--delay": "1200ms" } as React.CSSProperties}
+          >
+            <VoiceHudMock />
+          </div>
         </div>
         <PanelMock className="lg:mr-2" />
       </div>
@@ -380,6 +400,159 @@ export function ClipboardMock() {
               1
             </span>
           ) : null}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------------- voice */
+
+/** The dictation HUD: level bars while you hold the key, style on the right. */
+export function VoiceHudMock({ className = "" }: { className?: string }) {
+  const bars = [0.5, 0.9, 0.35, 1, 0.65, 0.85, 0.4, 0.95, 0.55, 0.75, 0.3, 0.8];
+
+  return (
+    <div
+      className={`inline-flex items-center gap-3 rounded-xl border border-hairline bg-surface px-3 py-[10px] ${className}`}
+    >
+      <span className="flex size-[26px] items-center justify-center rounded-md bg-accent-green-soft text-accent-green">
+        <MicIcon className="size-[14px]" />
+      </span>
+
+      <span className="flex h-[22px] items-end gap-[3px]">
+        {bars.map((height, i) => (
+          <span
+            key={i}
+            className="wave-bar w-[3px] rounded-full bg-accent-green"
+            style={
+              {
+                height: `${Math.round(height * 22)}px`,
+                "--delay": `${i * 70}ms`,
+              } as React.CSSProperties
+            }
+          />
+        ))}
+      </span>
+
+      <span className="text-[12px] text-mute">0:04</span>
+      <span className="rounded-xs bg-elevated px-[6px] py-[2px] text-[11px] tracking-[0.4px] text-on-dark-mute">
+        Prose
+      </span>
+    </div>
+  );
+}
+
+/** What the key does: spoken words in, cleaned text into the field you were in. */
+export function DictationMock() {
+  return (
+    <div className="overflow-hidden rounded-md border border-hairline bg-elevated">
+      <div className="flex items-center gap-2 border-b border-hairline px-3 py-[10px]">
+        <WaveformIcon className="size-[14px] text-mute" />
+        <span className="text-[13px] text-mute">Heard</span>
+        <span className="ml-auto text-[12px] text-stone">on this Mac</span>
+      </div>
+      <p className="px-3 py-[10px] text-[13px] leading-[1.6] text-mute">
+        so um send the crest build to marcus before friday comma and tell him the
+        uninstaller ships too
+      </p>
+      <div className="flex items-center gap-2 border-y border-hairline bg-surface px-3 py-[8px]">
+        <span className="text-[12px] text-stone">Typed into Mail</span>
+        <span className="ml-auto rounded-xs bg-card px-[6px] py-[2px] text-[11px] text-mute">
+          Prose
+        </span>
+      </div>
+      <p className="px-3 py-[10px] text-[13px] leading-[1.6] text-ink">
+        Send the Crest build to Marcus before Friday, and tell him the uninstaller
+        ships too.
+      </p>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------- meetings */
+
+/** The summary a recorded call turns into, written by the on-device model. */
+export function MeetingMock() {
+  const actions = [
+    { task: "Send the beta dmg to the design team", owner: "You" },
+    { task: "Confirm the notarisation certificate", owner: "Marcus" },
+  ];
+
+  return (
+    <div className="overflow-hidden rounded-lg border border-hairline bg-surface">
+      <div className="flex items-center gap-3 border-b border-hairline px-4 py-3">
+        <BubbleIcon className="size-4 text-mute" />
+        <div className="min-w-0">
+          <p className="truncate text-[14px] font-medium text-ink">Design sync</p>
+          <p className="text-[12px] text-mute">32 minutes · Zoom · 2 speakers</p>
+        </div>
+        <span className="ml-auto flex items-center gap-[5px] rounded-xs bg-accent-green-soft px-[6px] py-[2px] text-[11px] tracking-[0.4px] text-accent-green">
+          <span className="size-[5px] rounded-full bg-accent-green" />
+          On device
+        </span>
+      </div>
+
+      <div className="space-y-3 px-4 py-[14px]">
+        <p className="text-[13px] leading-[1.6] text-body">
+          Agreed to ship the uninstaller in 1.1 and hold notarisation until the
+          Developer ID lands.
+        </p>
+
+        <div className="space-y-[6px]">
+          <p className="text-[12px] tracking-[0.4px] text-stone">Action items</p>
+          {actions.map((action) => (
+            <div key={action.task} className="flex items-center gap-[10px]">
+              <span className="flex size-[15px] shrink-0 items-center justify-center rounded-xs border border-stone" />
+              <p className="min-w-0 truncate text-[13px] text-ink">{action.task}</p>
+              <span className="ml-auto shrink-0 rounded-xs bg-elevated px-[6px] py-[2px] text-[11px] text-mute">
+                {action.owner}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="flex items-center gap-2 border-t border-hairline bg-elevated px-4 py-[10px]">
+        <span className="text-[12px] text-mute">Transcript kept, per speaker.</span>
+        <span className="ml-auto text-[12px] text-body">Export as Markdown</span>
+      </div>
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------- file search */
+
+/** Spotlight results folded into the same list as apps and actions. */
+export function FileSearchMock() {
+  const files = [
+    { name: "Crest 1.1 release notes.md", meta: "~/Documents · 4 KB" },
+    { name: "PanelChrome.swift", meta: "~/Developer/Crest · yesterday" },
+    { name: "design-sync-notes.pdf", meta: "~/Downloads · 1.2 MB" },
+  ];
+
+  return (
+    <div className="overflow-hidden rounded-md border border-hairline bg-elevated">
+      <div className="flex items-center gap-2 border-b border-hairline px-3 py-[10px]">
+        <FileSearchIcon className="size-[14px] text-mute" />
+        <span className="text-[14px] text-ink">crest re</span>
+        <span className="caret inline-block h-[15px] w-px bg-white/70" />
+        <span className="ml-auto text-[12px] text-stone">Files</span>
+      </div>
+      {files.map((file, i) => (
+        <div
+          key={file.name}
+          className={`flex items-center gap-[10px] border-b border-hairline px-3 py-[9px] last:border-b-0 ${
+            i === 0 ? "bg-card" : ""
+          }`}
+        >
+          <span className="flex size-[26px] items-center justify-center rounded-md bg-card text-mute">
+            <DocIcon className="size-[13px]" />
+          </span>
+          <div className="min-w-0">
+            <p className="truncate text-[13px] text-ink">{file.name}</p>
+            <p className="truncate text-[12px] text-mute">{file.meta}</p>
+          </div>
         </div>
       ))}
     </div>

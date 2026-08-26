@@ -128,6 +128,16 @@ body {
   }
 }
 
+@keyframes wave {
+  0%,
+  100% {
+    transform: scaleY(0.28);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+
 @keyframes caret {
   0%,
   45% {
@@ -192,6 +202,14 @@ body {
   animation: caret 1.1s steps(1) infinite;
 }
 
+/* Live mic level. Each bar is the same animation on a different offset, which
+   reads as speech rather than as a metronome. */
+.wave-bar {
+  transform-origin: center;
+  animation: wave 900ms ease-in-out infinite;
+  animation-delay: var(--delay, 0ms);
+}
+
 .type {
   display: inline-block;
   overflow: hidden;
@@ -228,6 +246,7 @@ body {
   .reveal-soft,
   .drift,
   .caret,
+  .wave-bar,
   .type,
   .meter-fill {
     animation: none !important;
