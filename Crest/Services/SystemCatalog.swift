@@ -506,5 +506,11 @@ nonisolated enum SystemCatalog {
                symbol: "doc.on.doc", aliases: ["last transcript", "redo dictation", "what did i say"]),
         Action(id: "action:vocabulary", title: "Edit Voice Vocabulary", subtitle: "Teach the recognizer names and jargon",
                symbol: "character.book.closed", aliases: ["dictionary", "vocabulary", "custom words", "spelling"]),
+        Action(id: "action:tiling", title: "Toggle Window Tiling", subtitle: "Arrange windows side by side, or stop",
+               symbol: "rectangle.split.2x2", aliases: ["tiling", "window manager", "tile windows", "omarchy", "hyprland", "yabai", "aerospace"]),
+        Action(id: "action:tiling.layout", title: "Change Window Layout", subtitle: "Cycle dwindle, tall, wide and monocle",
+               symbol: "square.split.bottomrightquarter", aliases: ["layout", "dwindle", "monocle", "split", "arrange windows"]),
+        Action(id: "action:tiling.retile", title: "Re-tile Windows", subtitle: "Lay every window out again",
+               symbol: "arrow.clockwise.square", aliases: ["retile", "rearrange", "fix layout", "reset windows"]),
     ]
 }

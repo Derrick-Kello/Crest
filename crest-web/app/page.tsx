@@ -24,6 +24,7 @@ import {
   ShieldIcon,
   SparklesIcon,
   TagIcon,
+  TilingIcon,
   TrashIcon,
   WrenchIcon,
 } from "./components/icons";
@@ -111,6 +112,76 @@ const sections = [
     icon: BubbleIcon,
     title: "Meetings",
     body: "Calls you recorded, each with a transcript per speaker and a summary written on this Mac.",
+  },
+  {
+    icon: TilingIcon,
+    title: "Tiling",
+    body: "Which workspace you are on, what is waiting on the other eight, and the layout this one is using.",
+  },
+];
+
+/// The shortcuts, grouped the way the settings pane groups them.
+const tilingShortcuts = [
+  {
+    group: "Focus",
+    rows: [
+      { keys: ["mod", "H J K L"], label: "Focus left, down, up, right" },
+      { keys: ["mod", "←↓↑→"], label: "The same, for hands not yet trained on hjkl" },
+      { keys: ["mod", "`"], label: "Cycle through the windows in order" },
+    ],
+  },
+  {
+    group: "Move",
+    rows: [
+      { keys: ["mod", "⇧", "H J K L"], label: "Swap the window with its neighbour" },
+      { keys: ["mod", "⇧", "↩"], label: "Promote it to the main pane" },
+    ],
+  },
+  {
+    group: "Workspaces",
+    rows: [
+      { keys: ["mod", "1…9"], label: "Switch to a workspace" },
+      { keys: ["mod", "⇧", "1…9"], label: "Send the window there and stay put" },
+      { keys: ["mod", "[  ]"], label: "Previous or next workspace" },
+    ],
+  },
+  {
+    group: "Layout",
+    rows: [
+      { keys: ["mod", "E"], label: "Cycle dwindle, tall, wide, monocle" },
+      { keys: ["mod", "-  ="], label: "Shrink or grow the pane you are in" },
+      { keys: ["mod", ",  ."], label: "Fewer or more windows in the main pane" },
+      { keys: ["mod", "0"], label: "Balance every split" },
+      { keys: ["mod", "R"], label: "Lay everything out again" },
+    ],
+  },
+  {
+    group: "Window",
+    rows: [
+      { keys: ["mod", "F"], label: "Fill the screen" },
+      { keys: ["mod", "V"], label: "Float it, or put it back" },
+      { keys: ["mod", "⇧", "Q"], label: "Close it" },
+      { keys: ["mod", "⇧", "T"], label: "Turn tiling on or off" },
+    ],
+  },
+];
+
+const tilingLayouts = [
+  {
+    title: "Dwindle",
+    body: "Every new window halves the space of the one before it, alternating the cut. Two sit side by side, three make an L, four make a spiral.",
+  },
+  {
+    title: "Tall",
+    body: "One large pane on the left, everything else stacked down the right. For when one window is the work and the rest are reference.",
+  },
+  {
+    title: "Wide",
+    body: "Tall, rotated. The main pane spans the top, which suits a monitor wider than it is deep.",
+  },
+  {
+    title: "Monocle",
+    body: "One window at a time, filling the screen, the rest behind it.",
   },
 ];
 
@@ -513,6 +584,70 @@ export default function Home() {
         </Section>
 
         {/* Cleaner */}
+        {/* Tiling */}
+        <Section id="tiling">
+          <SectionHeading
+            center
+            title="Your windows, arranged."
+            subtitle="Nine workspaces, four layouts, and a key for each of them."
+          />
+
+          <div className="mt-12 grid items-start gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] lg:gap-14">
+            <div className="space-y-3">
+              {tilingLayouts.map(({ title, body }, i) => (
+                <div
+                  key={title}
+                  className="reveal rounded-md border border-hairline bg-surface p-4 transition-colors duration-300 hover:border-hairline-strong"
+                  style={{ "--stagger": `${i * 2}%` } as React.CSSProperties}
+                >
+                  <p className="text-[14px] font-medium tracking-[0.2px] text-ink">{title}</p>
+                  <p className="mt-1 text-[14px] leading-[1.6] text-mute">{body}</p>
+                </div>
+              ))}
+
+              <div className="reveal rounded-md border border-hairline bg-card p-4">
+                <p className="text-[14px] leading-[1.6] text-mute">
+                  macOS will not let anything replace its window server, so Crest moves windows
+                  through the Accessibility API instead. Workspaces are Crest&rsquo;s own rather
+                  than Spaces, which cannot be switched without turning off System Integrity
+                  Protection. Turning tiling off puts every window back.
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-6">
+              {tilingShortcuts.map(({ group, rows }) => (
+                <div key={group} className="reveal">
+                  <p className="text-[13px] font-medium uppercase tracking-[0.8px] text-mute">
+                    {group}
+                  </p>
+                  <div className="mt-3 space-y-2">
+                    {rows.map(({ keys, label }) => (
+                      <div
+                        key={label}
+                        className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-md border border-hairline bg-surface px-4 py-2.5"
+                      >
+                        <span className="flex shrink-0 items-center gap-1">
+                          {keys.map((key) => (
+                            <Keycap key={key}>{key === "mod" ? "⌃⌘" : key}</Keycap>
+                          ))}
+                        </span>
+                        <span className="text-[14px] leading-[1.6] text-mute">{label}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+
+              <p className="reveal text-[14px] leading-[1.6] text-mute">
+                <Keycap>⌃⌘</Keycap> stands in for Omarchy&rsquo;s SUPER key, and every shortcut
+                hangs off it. Pick a different one in Settings if it collides with something you
+                already use, and the whole map moves with it.
+              </p>
+            </div>
+          </div>
+        </Section>
+
         <Section id="cleaner">
           <SectionHeading
             center

@@ -60,7 +60,7 @@ final class KeepAwakeService {
     private var systemAssertion: IOPMAssertionID = 0
     private var displayAssertion: IOPMAssertionID = 0
     private var expiryTask: Task<Void, Never>?
-    private let logger = Logger(subsystem: "com.silvergrade.crest", category: "KeepAwake")
+    private let logger = Logger(subsystem: "com.smarthive.crest", category: "KeepAwake")
 
     private init() {}
 

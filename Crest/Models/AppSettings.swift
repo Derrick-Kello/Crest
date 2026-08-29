@@ -11,7 +11,7 @@ import ServiceManagement
 /// access — there is no in-memory mirror to fall out of sync with what's on disk.
 enum Preferences {
     private static let defaults = UserDefaults.standard
-    private static let logger = Logger(subsystem: "com.silvergrade.crest", category: "Settings")
+    private static let logger = Logger(subsystem: "com.smarthive.crest", category: "Settings")
 
     private enum Key {
         static let showFreeSpace = "showFreeSpaceInMenuBar"
@@ -54,6 +54,13 @@ enum Preferences {
         static let meetingAutoSummarize = "meetingAutoSummarize"
         static let meetingSuggestOnCall = "meetingSuggestOnCall"
         static let meetingKeepAudio = "meetingKeepAudio"
+        static let tilingEnabled = "tilingEnabled"
+        static let tilingInnerGap = "tilingInnerGap"
+        static let tilingOuterGap = "tilingOuterGap"
+        static let tilingExcluded = "tilingExcludedBundleIDs"
+        static let tilingLayouts = "tilingWorkspaceLayouts"
+        static let tilingKeyOverrides = "tilingKeyOverrides"
+        static let tilingModifier = "tilingModifier"
     }
 
     // MARK: - Voice
@@ -301,6 +308,65 @@ enum Preferences {
     static var launchHistory: LaunchHistory {
         get { decode(LaunchHistory.self, forKey: Key.launchHistory) ?? LaunchHistory() }
         set { encode(newValue, forKey: Key.launchHistory) }
+    }
+
+    // MARK: - Tiling
+
+    /// Master switch for the window manager. Off by default: it needs
+    /// Accessibility, and an app that starts rearranging windows the first time it
+    /// launches has misread what the user agreed to.
+    static var tilingEnabled: Bool {
+        get { defaults.bool(forKey: Key.tilingEnabled) }
+        set { defaults.set(newValue, forKey: Key.tilingEnabled) }
+    }
+
+    /// Space between two windows, in points.
+    static var tilingInnerGap: Int {
+        get { defaults.object(forKey: Key.tilingInnerGap) as? Int ?? 8 }
+        set { defaults.set(min(max(newValue, 0), 64), forKey: Key.tilingInnerGap) }
+    }
+
+    /// Space between the windows and the edge of the screen.
+    static var tilingOuterGap: Int {
+        get { defaults.object(forKey: Key.tilingOuterGap) as? Int ?? 12 }
+        set { defaults.set(min(max(newValue, 0), 64), forKey: Key.tilingOuterGap) }
+    }
+
+    /// Apps the user has told the tiler to leave alone, on top of the ones it
+    /// never touches anyway.
+    static var tilingExcludedBundleIDs: Set<String> {
+        get { Set(defaults.stringArray(forKey: Key.tilingExcluded) ?? []) }
+        set { defaults.set(Array(newValue).sorted(), forKey: Key.tilingExcluded) }
+    }
+
+    /// The layout each workspace was last left in. Stored by workspace number
+    /// rather than as part of the workspace itself, because a workspace's window
+    /// membership is meaningless after a restart and its layout is not.
+    static func tilingLayout(forWorkspace index: Int) -> LayoutMode {
+        let stored = decode([Int: String].self, forKey: Key.tilingLayouts) ?? [:]
+        return stored[index].flatMap(LayoutMode.init(rawValue:)) ?? .dwindle
+    }
+
+    static func setTilingLayout(_ mode: LayoutMode, forWorkspace index: Int) {
+        var stored = decode([Int: String].self, forKey: Key.tilingLayouts) ?? [:]
+        stored[index] = mode.rawValue
+        encode(stored, forKey: Key.tilingLayouts)
+    }
+
+    /// The modifier that stands in for Omarchy's SUPER key.
+    ///
+    /// ⌃⌘ by default rather than ⌥, which reads better but collides with Crest's
+    /// own push-to-talk dictation on a machine where that is left on ⌥.
+    static var tilingModifier: TilingModifier {
+        get { TilingModifier(rawValue: defaults.string(forKey: Key.tilingModifier) ?? "") ?? .commandControl }
+        set { defaults.set(newValue.rawValue, forKey: Key.tilingModifier) }
+    }
+
+    /// Keys the user rebound, by command id. Only the changes are stored, so a
+    /// later release can move a default without having to migrate anything.
+    static var tilingKeyOverrides: [String: HotKeyCombo] {
+        get { decode([String: HotKeyCombo].self, forKey: Key.tilingKeyOverrides) ?? [:] }
+        set { encode(newValue, forKey: Key.tilingKeyOverrides) }
     }
 
     private static func decode<T: Decodable>(_ type: T.Type, forKey key: String) -> T? {

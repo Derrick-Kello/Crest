@@ -12,6 +12,7 @@ private enum SettingsPane: String, CaseIterable, Identifiable {
     case shortcuts = "Shortcuts"
     case aliases = "Aliases"
     case voice = "Voice"
+    case tiling = "Tiling"
     case meetings = "Meetings"
     case cleaner = "Cleaner"
     case tools = "Tools"
@@ -26,6 +27,7 @@ private enum SettingsPane: String, CaseIterable, Identifiable {
         case .shortcuts: "command"
         case .aliases: "text.badge.star"
         case .voice: "mic"
+        case .tiling: "rectangle.split.2x2"
         case .meetings: "text.bubble"
         case .cleaner: "sparkles"
         case .tools: "wrench.and.screwdriver"
@@ -65,6 +67,7 @@ struct SettingsView: View {
         case .shortcuts: HotKeysSettingsTab()
         case .aliases: AliasSettingsTab()
         case .voice: VoiceSettingsTab()
+        case .tiling: TilingSettingsTab()
         case .meetings: MeetingsSettingsTab()
         case .cleaner: CleanerSettingsTab()
         case .tools: ToolsSettingsTab()

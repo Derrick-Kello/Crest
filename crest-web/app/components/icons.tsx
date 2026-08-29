@@ -316,6 +316,16 @@ export function AppleIcon(p: IconProps) {
   );
 }
 
+export function TilingIcon(p: IconProps) {
+  return (
+    <Svg {...p}>
+      <rect x="2.5" y="3.5" width="8" height="17" rx="1.6" />
+      <rect x="13.5" y="3.5" width="8" height="7.5" rx="1.6" />
+      <rect x="13.5" y="13" width="8" height="7.5" rx="1.6" />
+    </Svg>
+  );
+}
+
 export function LogoMark({ className }: IconProps) {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" className={className ?? "size-6"}>

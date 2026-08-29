@@ -122,7 +122,7 @@ nonisolated struct UninstallReport: Sendable {
 nonisolated final class UninstallerService: Sendable {
     static let shared = UninstallerService()
 
-    private let logger = Logger(subsystem: "com.silvergrade.crest", category: "Uninstaller")
+    private let logger = Logger(subsystem: "com.smarthive.crest", category: "Uninstaller")
 
     private init() {}
 

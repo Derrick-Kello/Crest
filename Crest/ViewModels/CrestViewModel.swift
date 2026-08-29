@@ -21,6 +21,7 @@ nonisolated enum PanelSection: String, CaseIterable, Identifiable, Codable {
     case docker = "Docker"
     case homebrew = "Homebrew"
     case voice = "Voice"
+    case tiling = "Tiling"
     case meetings = "Meetings"
 
     var id: String { rawValue }
@@ -40,6 +41,7 @@ nonisolated enum PanelSection: String, CaseIterable, Identifiable, Codable {
         case .docker: "Images, containers and build cache"
         case .homebrew: "Outdated packages and brew cleanup"
         case .voice: "Hold a key, talk, and the text lands where you're typing"
+        case .tiling: "Tile your windows and switch between nine workspaces"
         case .meetings: "Record a call and get an on-device summary"
         }
     }
@@ -57,6 +59,7 @@ nonisolated enum PanelSection: String, CaseIterable, Identifiable, Codable {
         case .docker: "shippingbox"
         case .homebrew: "cup.and.saucer"
         case .voice: "mic"
+        case .tiling: "rectangle.split.2x2"
         case .meetings: "text.bubble"
         }
     }
@@ -436,6 +439,7 @@ final class CrestViewModel {
         // shortcut searches a populated list instead of an empty one.
         CommandBarService.shared.buildIndex()
         configureVoice()
+        configureTiling()
 
         // First run, or a release that added steps worth showing. Everything in it
         // is skippable, so it never stands between the user and the app.
@@ -523,6 +527,18 @@ final class CrestViewModel {
     /// The panels are driven by callbacks rather than by observing the services from a
     /// view: ordering an `NSPanel` in and out is a side effect, and there is no view on
     /// screen to host that observation while the panel is the thing being shown.
+    /// Brings the window manager up, if the user left it on.
+    ///
+    /// Starting is conditional but registering the keys is not: the map contains
+    /// the shortcut that turns tiling *on*, so gating registration on the same
+    /// preference would make that one key the only one that could never work.
+    private func configureTiling() {
+        if Preferences.tilingEnabled {
+            TilingEngine.shared.start()
+        }
+        TilingHotKeyService.shared.registerAll()
+    }
+
     private func configureVoice() {
         dictation.onPhaseChange = { [weak self] in
             guard let self else { return }
@@ -648,6 +664,16 @@ final class CrestViewModel {
             statusMessage = "Clipboard history is in the panel"
         case "action:uninstall":
             openUninstaller()
+        case "action:tiling":
+            TilingEngine.shared.toggle()
+            TilingHotKeyService.shared.registerAll()
+            statusMessage = TilingEngine.shared.isRunning ? "Tiling on" : "Tiling off"
+        case "action:tiling.layout":
+            TilingEngine.shared.cycleLayout()
+            statusMessage = TilingEngine.shared.status
+        case "action:tiling.retile":
+            TilingEngine.shared.refresh()
+            statusMessage = "Windows re-tiled"
         case "action:network":
             selectedSection = .network
         case "action:brewupdate":

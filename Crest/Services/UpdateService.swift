@@ -38,7 +38,7 @@ final class UpdateService {
     let buildNumber = Bundle.main.buildNumber
 
     private let endpoint = URL(string: "https://api.github.com/repos/Derrick-Kello/Crest/releases/latest")!
-    private let logger = Logger(subsystem: "com.silvergrade.crest", category: "Updates")
+    private let logger = Logger(subsystem: "com.smarthive.crest", category: "Updates")
     private var task: Task<Void, Never>?
 
     private init() {

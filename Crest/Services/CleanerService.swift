@@ -30,7 +30,7 @@ struct CleanerProgress: Sendable {
 nonisolated final class CleanerService: Sendable {
     static let shared = CleanerService()
 
-    private let logger = Logger(subsystem: "com.silvergrade.crest", category: "Cleaner")
+    private let logger = Logger(subsystem: "com.smarthive.crest", category: "Cleaner")
     private let fileManager = FileManager.default
 
     // MARK: - Scan

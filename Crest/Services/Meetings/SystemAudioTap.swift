@@ -24,7 +24,7 @@ import ScreenCaptureKit
 /// but the configuration still has to describe a valid one.
 nonisolated final class SystemAudioTap: NSObject, SCStreamOutput, SCStreamDelegate, @unchecked Sendable {
     private var stream: SCStream?
-    private let queue = DispatchQueue(label: "com.silvergrade.crest.systemaudio", qos: .userInitiated)
+    private let queue = DispatchQueue(label: "com.smarthive.crest.systemaudio", qos: .userInitiated)
 
     private var converter: AudioFormatConverter?
     private var onBuffer: (@Sendable (AudioChunk) -> Void)?

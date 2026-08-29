@@ -61,7 +61,7 @@ final class ClipboardService {
 
     private var pollTask: Task<Void, Never>?
     private var lastChangeCount = NSPasteboard.general.changeCount
-    private let logger = Logger(subsystem: "com.silvergrade.crest", category: "Clipboard")
+    private let logger = Logger(subsystem: "com.smarthive.crest", category: "Clipboard")
 
     private let storeURL: URL = {
         let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]

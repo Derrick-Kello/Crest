@@ -6,6 +6,7 @@ const links = [
   { href: "#panel", label: "Panel" },
   { href: "#command-bar", label: "Command bar" },
   { href: "#voice", label: "Voice" },
+  { href: "#tiling", label: "Tiling" },
   { href: "#cleaner", label: "Cleaner" },
   { href: "#privacy", label: "Privacy" },
   { href: "#faq", label: "FAQ" },

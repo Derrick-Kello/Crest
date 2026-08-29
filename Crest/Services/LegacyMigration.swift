@@ -6,28 +6,47 @@
 import Foundation
 import OSLog
 
-/// Carries a DiskPilot install across to Crest.
+/// Carries an install across every identity this app has shipped under.
 ///
-/// Renaming the app changed the bundle identifier, and on macOS the bundle identifier is
-/// the key to almost everything a user has accumulated: `UserDefaults` lives in a domain
-/// named after it, and by convention so does the Application Support directory. Ship the
-/// rename without this and every setting resets, the vocabulary empties, and the meeting
+/// Renaming changed the bundle identifier, and on macOS the bundle identifier is the key
+/// to almost everything a user has accumulated: `UserDefaults` lives in a domain named
+/// after it, and by convention so does the Application Support directory. Ship a rename
+/// without this and every setting resets, the vocabulary empties, and the meeting
 /// transcripts become files nothing reads — all of it still on disk, none of it visible.
 ///
 /// Runs once, before anything else reads a preference or touches a stored file, and
 /// leaves the old copies where they are. Copying rather than moving the defaults is
 /// deliberate: it costs a few kilobytes and means a user who goes back to the old build
 /// still finds their settings intact.
+///
+/// There have been two renames now, and they were not the same shape. DiskPilot changed
+/// both the identifier and the folder name; Silver Grade to Smart Hive changed only the
+/// identifier, because the app is still called Crest and still writes to a folder of that
+/// name. So the defaults migration walks a list and the folder migration does not.
 @MainActor
 enum LegacyMigration {
-    /// The identity this app used to ship under.
-    private static let legacyBundleIdentifier = "com.hostelhubb.DiskPilot"
-    /// The Application Support folder the old build wrote to.
+    /// Identifiers this app has shipped under, **newest first**.
+    ///
+    /// The order is load-bearing. Keys are copied only where the current domain has
+    /// nothing, so the first list entry holding a key is the one that wins. A user who
+    /// has data under both old identities wants the one they were using most recently,
+    /// which is the newer of the two — reverse this list and they silently get their
+    /// DiskPilot-era settings back instead.
+    private static let legacyBundleIdentifiers = [
+        "com.silvergrade.Crest",
+        "com.hostelhubb.DiskPilot",
+    ]
+
+    /// The Application Support folder the DiskPilot build wrote to. Only that rename
+    /// moved the folder, so there is one name here rather than a list.
     private static let legacyDirectoryName = "DiskPilot"
     private static let currentDirectoryName = "Crest"
 
-    private static let flagKey = "migratedFromDiskPilot"
-    private static let logger = Logger(subsystem: "com.silvergrade.crest", category: "Migration")
+    /// Lives in the *current* domain, which a bundle rename makes empty by definition.
+    /// That is what makes this correct across more than one rename without versioning:
+    /// the new identity has never run the migration, so the flag is absent and it runs.
+    private static let flagKey = "migratedFromPreviousBundle"
+    private static let logger = Logger(subsystem: "com.smarthive.crest", category: "Migration")
 
     /// Call before the first read of any preference or stored file.
     static func runIfNeeded() {
@@ -52,16 +71,21 @@ enum LegacyMigration {
     /// from one would drag every system-wide setting on the Mac into Crest's plist.
     private static func migrateDefaults() {
         let defaults = UserDefaults.standard
-        guard let legacy = defaults.persistentDomain(forName: legacyBundleIdentifier),
-              !legacy.isEmpty
-        else { return }
-
         var copied = 0
-        for (key, value) in legacy where defaults.object(forKey: key) == nil {
-            defaults.set(value, forKey: key)
-            copied += 1
+
+        for identifier in legacyBundleIdentifiers {
+            guard let legacy = defaults.persistentDomain(forName: identifier),
+                  !legacy.isEmpty
+            else { continue }
+
+            for (key, value) in legacy where defaults.object(forKey: key) == nil {
+                defaults.set(value, forKey: key)
+                copied += 1
+            }
+            logger.info("carried over settings from \(identifier, privacy: .public)")
         }
-        logger.info("carried over \(copied, privacy: .public) setting(s) from DiskPilot")
+
+        logger.info("carried over \(copied, privacy: .public) setting(s) in total")
     }
 
     // MARK: - Stored files

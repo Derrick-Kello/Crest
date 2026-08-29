@@ -20,7 +20,7 @@ import OSLog
 final class HomebrewService {
     static let shared = HomebrewService()
 
-    private let logger = Logger(subsystem: "com.silvergrade.crest", category: "Homebrew")
+    private let logger = Logger(subsystem: "com.smarthive.crest", category: "Homebrew")
 
     // MARK: - State
 

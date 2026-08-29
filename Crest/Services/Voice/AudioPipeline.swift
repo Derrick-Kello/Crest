@@ -8,10 +8,10 @@ import Foundation
 import OSLog
 
 nonisolated enum VoiceLog {
-    static let audio = Logger(subsystem: "com.silvergrade.crest", category: "VoiceAudio")
-    static let speech = Logger(subsystem: "com.silvergrade.crest", category: "VoiceSpeech")
-    static let inject = Logger(subsystem: "com.silvergrade.crest", category: "VoiceInject")
-    static let meeting = Logger(subsystem: "com.silvergrade.crest", category: "Meeting")
+    static let audio = Logger(subsystem: "com.smarthive.crest", category: "VoiceAudio")
+    static let speech = Logger(subsystem: "com.smarthive.crest", category: "VoiceSpeech")
+    static let inject = Logger(subsystem: "com.smarthive.crest", category: "VoiceInject")
+    static let meeting = Logger(subsystem: "com.smarthive.crest", category: "Meeting")
 }
 
 /// One buffer of captured audio, in transit from an audio thread to a speech engine.

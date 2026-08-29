@@ -76,6 +76,7 @@ struct PanelView: View {
         case .docker: DockerSectionView()
         case .homebrew: HomebrewSectionView()
         case .voice: VoiceSectionView()
+        case .tiling: TilingSectionView()
         case .meetings: MeetingsSectionView()
         }
     }

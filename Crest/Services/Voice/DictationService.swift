@@ -640,7 +640,7 @@ enum VoicePermissions {
         do {
             _ = try ProcessRunner.run(
                 "/usr/bin/tccutil",
-                arguments: ["reset", "Accessibility", Bundle.main.bundleIdentifier ?? "com.silvergrade.Crest"]
+                arguments: ["reset", "Accessibility", Bundle.main.bundleIdentifier ?? "com.smarthive.Crest"]
             )
             return true
         } catch {

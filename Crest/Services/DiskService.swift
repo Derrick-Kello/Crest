@@ -36,7 +36,7 @@ struct VolumeSnapshot: Sendable, Equatable {
 nonisolated final class DiskService: Sendable {
     static let shared = DiskService()
 
-    private let logger = Logger(subsystem: "com.silvergrade.crest", category: "DiskService")
+    private let logger = Logger(subsystem: "com.smarthive.crest", category: "DiskService")
     private let fileManager = FileManager.default
     private let sizeCache = SizeCache()
 
