@@ -7,3 +7,7 @@ packaging/release.env
 
 # Separate repo, pushed on its own
 packaging/homebrew-tap/
+
+# Release artefacts, built by packaging/ and attached to a GitHub release
+# rather than committed.
+*.dmg
