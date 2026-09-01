@@ -3,6 +3,7 @@
 //  Crest
 //
 
+import AppKit
 import SwiftUI
 
 /// The whole app, as one menu-bar panel.
@@ -28,6 +29,7 @@ struct PanelView: View {
     var body: some View {
         VStack(spacing: 0) {
             header
+            updateBanner
 
             PanelTabBar()
                 .padding(.horizontal, 10)
@@ -78,6 +80,41 @@ struct PanelView: View {
         case .voice: VoiceSectionView()
         case .tiling: TilingSectionView()
         case .meetings: MeetingsSectionView()
+        }
+    }
+
+    /// The other half of the update notification.
+    ///
+    /// A notification can be denied, missed, or swiped away, and a menu-bar app
+    /// has no Dock badge to fall back on — so the panel says it too, on every tab,
+    /// for as long as the release is still newer than what is running. Only ever
+    /// a link: Crest does not download or replace itself.
+    @ViewBuilder
+    private var updateBanner: some View {
+        if let pending = viewModel.updates.pending {
+            Button {
+                NSWorkspace.shared.open(pending.url)
+            } label: {
+                HStack(spacing: 7) {
+                    Image(systemName: "arrow.down.circle.fill")
+                        .font(.system(size: 12))
+                    Text("Crest \(pending.version) is available")
+                        .font(.system(size: 11, weight: .medium))
+                    Spacer(minLength: 4)
+                    Text("See what's new")
+                        .font(.system(size: 10.5))
+                        .foregroundStyle(.secondary)
+                }
+                .foregroundStyle(.tint)
+                .padding(.horizontal, 11)
+                .padding(.vertical, 7)
+                .frame(maxWidth: .infinity)
+                .background(.tint.opacity(0.12), in: .rect(cornerRadius: 9))
+            }
+            .buttonStyle(.plain)
+            .padding(.horizontal, 10)
+            .padding(.bottom, 8)
+            .help("Open the release page on GitHub")
         }
     }
 

@@ -25,9 +25,21 @@ final class TilingHotKeyService {
     /// nothing is the worst version of this bug.
     private(set) var failedIdentifiers: Set<String> = []
 
+    /// The modifier the whole map hangs off, mirrored here rather than read from
+    /// `Preferences` at the point of use.
+    ///
+    /// It is the same value either way, but only this one is observable. Every
+    /// label in the app that spells a tiling shortcut out — the settings picker,
+    /// its warning line, the panel's "⌃⌘E to cycle" — used to read the preference
+    /// directly, and `UserDefaults` tells SwiftUI nothing when it changes. So
+    /// changing the modifier rebound every key immediately and left every label
+    /// in the interface naming the old one until the app was relaunched.
+    private(set) var modifier: TilingModifier
+
     private var isRegistered = false
 
     private init() {
+        modifier = Preferences.tilingModifier
         bindings = Self.rebuild()
     }
 
@@ -90,6 +102,7 @@ final class TilingHotKeyService {
 
     func resetToDefaults() {
         Preferences.tilingKeyOverrides = [:]
+        modifier = Preferences.tilingModifier
         bindings = Self.rebuild()
         registerAll()
     }
@@ -101,11 +114,19 @@ final class TilingHotKeyService {
     /// where most keys moved to the new modifier and a few stayed on the old one,
     /// which is harder to use than either and impossible to explain.
     func setModifier(_ modifier: TilingModifier) {
-        guard modifier != Preferences.tilingModifier else { return }
+        guard modifier != self.modifier else { return }
         Preferences.tilingModifier = modifier
         Preferences.tilingKeyOverrides = [:]
+        self.modifier = modifier
         bindings = Self.rebuild()
         registerAll()
+    }
+
+    /// How one command's shortcut is written, for the places that show a key in a
+    /// sentence rather than in the key map. Returns nil for an unbound id, so a
+    /// caller can leave the whole phrase out instead of printing a gap.
+    func shortcut(for id: String) -> String? {
+        bindings.first { $0.id == id }?.combo.displayString
     }
 
     private static func rebuild() -> [TilingBinding] {
@@ -157,7 +178,7 @@ final class TilingHotKeyService {
         case "layout.main.fewer": engine.adjustMainCount(by: -1)
         case "layout.main.more": engine.adjustMainCount(by: 1)
         case "layout.balance": engine.balance()
-        case "layout.retile": engine.refresh()
+        case "layout.retile": engine.retile()
         case "window.zoom": engine.toggleZoom()
         case "window.float": engine.toggleFloat()
         case "window.close": engine.closeFocused()

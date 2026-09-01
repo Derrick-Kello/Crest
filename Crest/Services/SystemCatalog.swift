@@ -415,18 +415,24 @@ nonisolated enum SystemCatalog {
         var items = PanelSection.allCases.map { section in
             CatalogItem(
                 id: "section:" + section.rawValue,
-                title: section.rawValue,
-                subtitle: "Open in the Crest panel",
+                title: "Show \(section.rawValue) Tab",
+                subtitle: section.blurb,
                 category: .tool,
                 symbolName: section.iconName,
+                // The name on its own was not enough to find these. Somebody who
+                // wants the Disk tab types "disk", but somebody who has forgotten
+                // what the tab is called types "switch tab" or "open panel", and
+                // before these keys existed that query returned nothing at all.
                 keys: CatalogItem.keys(
-                    title: section.rawValue,
-                    aliases: sectionAliases[section] ?? [],
-                    weak: ["crest", "panel"]
+                    title: "Show \(section.rawValue) Tab",
+                    aliases: [section.rawValue] + (sectionAliases[section] ?? []),
+                    weak: ["crest", "panel", "tab", "switch tab", "change tab", "section", "go to"]
                 ),
                 action: .appAction("section:" + section.rawValue)
             )
         }
+
+        items.append(contentsOf: workspaceItems())
 
         items.append(contentsOf: actions.map { action in
             CatalogItem(
@@ -443,6 +449,88 @@ nonisolated enum SystemCatalog {
                 action: .appAction(action.id)
             )
         })
+        return items
+    }
+
+    /// Every workspace, by number, as its own row.
+    ///
+    /// Nine rows rather than one "Switch Workspace" row, because a launcher is
+    /// answering "where do I want to go" and the answer is a number. One generic
+    /// row would find nothing for somebody typing "workspace 3", which is what
+    /// people actually type, and would then have to ask them the same question
+    /// again in a second step.
+    ///
+    /// Listed whether or not tiling is running. It is the command that turns the
+    /// feature on for most people — a workspace switcher that is invisible until
+    /// you already know the feature exists is not discoverable at all — so running
+    /// one starts the window manager first, and says so.
+    private static func workspaceItems() -> [CatalogItem] {
+        var items: [CatalogItem] = []
+
+        for number in 1 ... 9 {
+            items.append(CatalogItem(
+                id: "action:workspace.\(number)",
+                title: "Switch to Workspace \(number)",
+                subtitle: "Show the windows on workspace \(number)",
+                category: .tool,
+                symbolName: "square.grid.3x3.square",
+                keys: CatalogItem.keys(
+                    title: "Switch to Workspace \(number)",
+                    aliases: [
+                        "workspace \(number)", "desktop \(number)", "space \(number)",
+                        "go to workspace \(number)", "ws\(number)",
+                    ],
+                    weak: ["tiling", "window manager", "change workspace", "switch workspace"]
+                ),
+                action: .appAction("action:workspace.\(number)")
+            ))
+
+            items.append(CatalogItem(
+                id: "action:workspace.move.\(number)",
+                title: "Send Window to Workspace \(number)",
+                subtitle: "Move the window you were last in, and follow it there",
+                category: .tool,
+                symbolName: "arrow.up.forward.square",
+                keys: CatalogItem.keys(
+                    title: "Send Window to Workspace \(number)",
+                    aliases: [
+                        "move window to workspace \(number)", "move to desktop \(number)",
+                        "send to workspace \(number)", "throw window \(number)",
+                    ],
+                    weak: ["tiling", "window manager"]
+                ),
+                action: .appAction("action:workspace.move.\(number)")
+            ))
+        }
+
+        items.append(CatalogItem(
+            id: "action:workspace.next",
+            title: "Next Workspace",
+            subtitle: "Move one workspace to the right",
+            category: .tool,
+            symbolName: "arrow.right.square",
+            keys: CatalogItem.keys(
+                title: "Next Workspace",
+                aliases: ["next desktop", "forward a workspace", "change workspace"],
+                weak: ["tiling", "window manager"]
+            ),
+            action: .appAction("action:workspace.next")
+        ))
+
+        items.append(CatalogItem(
+            id: "action:workspace.previous",
+            title: "Previous Workspace",
+            subtitle: "Move one workspace to the left",
+            category: .tool,
+            symbolName: "arrow.left.square",
+            keys: CatalogItem.keys(
+                title: "Previous Workspace",
+                aliases: ["last desktop", "back a workspace", "change workspace"],
+                weak: ["tiling", "window manager"]
+            ),
+            action: .appAction("action:workspace.previous")
+        ))
+
         return items
     }
 
@@ -512,5 +600,9 @@ nonisolated enum SystemCatalog {
                symbol: "square.split.bottomrightquarter", aliases: ["layout", "dwindle", "monocle", "split", "arrange windows"]),
         Action(id: "action:tiling.retile", title: "Re-tile Windows", subtitle: "Lay every window out again",
                symbol: "arrow.clockwise.square", aliases: ["retile", "rearrange", "fix layout", "reset windows"]),
+        Action(id: "action:section.next", title: "Next Panel Tab", subtitle: "Move one tab along in the Crest panel",
+               symbol: "chevron.right.square", aliases: ["next tab", "change tab", "switch tab", "cycle tabs"]),
+        Action(id: "action:section.previous", title: "Previous Panel Tab", subtitle: "Move one tab back in the Crest panel",
+               symbol: "chevron.left.square", aliases: ["previous tab", "last tab", "change tab", "switch tab"]),
     ]
 }

@@ -35,35 +35,22 @@ struct HotKeysSettingsTab: View {
         @Bindable var viewModel = viewModel
 
         Form {
+            // A signpost, not a control. The command bar has its own pane now, and
+            // leaving a second copy of its shortcut here would give two fields
+            // editing one setting — but somebody who came looking for it in
+            // Shortcuts still has to be told where it went.
             Section {
-                Toggle("Enable the command bar shortcut", isOn: $viewModel.commandBarEnabled)
-
                 LabeledContent("Open command bar") {
-                    ShortcutRecorder(
-                        combo: Binding(
-                            get: { viewModel.commandBarHotKey },
-                            set: { if let combo = $0 { viewModel.commandBarHotKey = combo } }
-                        ),
-                        conflict: { combo in
-                            service.hotKeys.first { $0.combo == combo }?.name
-                        },
-                        placeholder: "Click to record"
-                    )
-                    .frame(width: 150, height: 22)
-                    .disabled(!viewModel.commandBarEnabled)
-                }
-            } header: {
-                Text("Command bar")
-            } footer: {
-                if viewModel.hotKeyRegistrationFailed {
-                    Text("\(viewModel.commandBarHotKey.displayString) is already claimed by another app. Record a different one.")
-                        .font(.caption)
-                        .foregroundStyle(.orange)
-                } else {
-                    Text("Search apps, run Crest actions, do arithmetic, preview files, or paste from clipboard history.")
-                        .font(.caption)
+                    Text(viewModel.commandBarEnabled ? viewModel.commandBarHotKey.displayString : "Off")
+                        .font(.system(size: 12, weight: .medium))
                         .foregroundStyle(.secondary)
                 }
+                Text("The command bar has its own pane in the sidebar, where you can change this key and what it searches.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            } header: {
+                Text("Command bar")
             }
 
             Section {

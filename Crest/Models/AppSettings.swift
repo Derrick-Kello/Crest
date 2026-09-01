@@ -35,6 +35,8 @@ enum Preferences {
         static let onboardingVersion = "completedOnboardingVersion"
         static let lastUpdateCheck = "lastUpdateCheck"
         static let automaticUpdateChecks = "automaticUpdateChecks"
+        static let updateNotifications = "updateNotifications"
+        static let announcedUpdateVersion = "announcedUpdateVersion"
         static let fileSearchEnabled = "fileSearchEnabled"
         static let filePreviewEnabled = "filePreviewEnabled"
         static let voiceEnabled = "voiceEnabled"
@@ -61,6 +63,7 @@ enum Preferences {
         static let tilingLayouts = "tilingWorkspaceLayouts"
         static let tilingKeyOverrides = "tilingKeyOverrides"
         static let tilingModifier = "tilingModifier"
+        static let tilingAnimations = "tilingAnimations"
     }
 
     // MARK: - Voice
@@ -250,6 +253,21 @@ enum Preferences {
         set { defaults.set(newValue, forKey: Key.automaticUpdateChecks) }
     }
 
+    /// Whether finding a new release raises a notification, as opposed to only
+    /// showing up in About. On by default: the check was already running, and an
+    /// answer nobody sees is not worth the request.
+    static var updateNotifications: Bool {
+        get { defaults.object(forKey: Key.updateNotifications) as? Bool ?? true }
+        set { defaults.set(newValue, forKey: Key.updateNotifications) }
+    }
+
+    /// The release that has already been announced, so it is announced once and
+    /// not once a day until it is installed.
+    static var announcedUpdateVersion: String? {
+        get { defaults.string(forKey: Key.announcedUpdateVersion) }
+        set { defaults.set(newValue, forKey: Key.announcedUpdateVersion) }
+    }
+
     /// Whether the command bar folds Spotlight file results into its list.
     static var fileSearchEnabled: Bool {
         get { defaults.object(forKey: Key.fileSearchEnabled) as? Bool ?? true }
@@ -357,6 +375,19 @@ enum Preferences {
     ///
     /// ⌃⌘ by default rather than ⌥, which reads better but collides with Crest's
     /// own push-to-talk dictation on a machine where that is left on ⌥.
+    /// Whether windows glide to their new frames instead of jumping there.
+    ///
+    /// On by default. Animation is what turns a layout change from a flicker into
+    /// something you can follow with your eyes, and it is the difference between
+    /// a tiler that feels like part of the system and one that feels like a script
+    /// rearranging your desktop. Off is offered because the movement is written
+    /// one frame at a time through the Accessibility API, which on an older Mac
+    /// with a lot of windows open costs more than it is worth.
+    static var tilingAnimations: Bool {
+        get { defaults.object(forKey: Key.tilingAnimations) as? Bool ?? true }
+        set { defaults.set(newValue, forKey: Key.tilingAnimations) }
+    }
+
     static var tilingModifier: TilingModifier {
         get { TilingModifier(rawValue: defaults.string(forKey: Key.tilingModifier) ?? "") ?? .commandControl }
         set { defaults.set(newValue.rawValue, forKey: Key.tilingModifier) }

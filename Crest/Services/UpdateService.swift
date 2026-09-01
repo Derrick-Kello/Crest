@@ -47,10 +47,23 @@ final class UpdateService {
 
     var isChecking: Bool { state == .checking }
 
-    /// Runs the check the user asked for. A check already in flight is left alone
-    /// rather than restarted, so a double-click does not fire two requests.
-    func check() {
+    /// The release waiting to be installed, if the last check found one. Read by
+    /// the menu-bar icon and the panel, which both want to point at it without
+    /// pulling the whole state apart.
+    var pending: (version: String, url: URL)? {
+        guard case .available(let version, let url, _) = state else { return nil }
+        return (version, url)
+    }
+
+    /// Runs a check. A check already in flight is left alone rather than
+    /// restarted, so a double-click does not fire two requests.
+    ///
+    /// `announcing` decides whether finding a release raises a notification. Off
+    /// for a check the user asked for: they are already looking at the answer, and
+    /// a banner over the pane that just told them the same thing is noise.
+    func check(announcing: Bool = false) {
         guard !isChecking else { return }
+        announcesResult = announcing
         state = .checking
         task?.cancel()
         task = Task { [weak self] in
@@ -61,26 +74,35 @@ final class UpdateService {
                 self.apply(release)
             } catch UpdateError.noReleases {
                 guard !Task.isCancelled else { return }
+                self.announcesResult = false
                 self.lastChecked = Date()
                 Preferences.lastUpdateCheck = self.lastChecked
                 self.state = .noReleases
             } catch {
                 guard !Task.isCancelled else { return }
+                self.announcesResult = false
                 self.logger.error("Update check failed: \(error.localizedDescription, privacy: .public)")
                 self.state = .failed("Couldn't reach GitHub. Check your connection and try again.")
             }
         }
     }
 
-    /// The once-a-day background check. Silent about failure: a laptop that opened
-    /// its lid without a network should not greet the user with an error.
+    /// The once-a-day background check, and the only one that speaks up. Silent
+    /// about failure: a laptop that opened its lid without a network should not
+    /// greet the user with an error.
     func checkInBackgroundIfDue() {
         guard Preferences.automaticUpdateChecks else { return }
         if let lastChecked, Date().timeIntervalSince(lastChecked) < 86_400 { return }
-        check()
+        check(announcing: true)
     }
 
+    /// Whether the check in flight should speak up if it finds something.
+    private var announcesResult = false
+
     private func apply(_ release: Release) {
+        let announces = announcesResult
+        announcesResult = false
+
         let latest = release.tagName.trimmingCharacters(in: CharacterSet(charactersIn: "vV "))
         lastChecked = Date()
         Preferences.lastUpdateCheck = lastChecked
@@ -94,6 +116,10 @@ final class UpdateService {
             return
         }
         state = .available(version: latest, url: url, notes: Self.summarize(release.body))
+
+        guard announces else { return }
+        let notes = Self.summarize(release.body)
+        Task { await UpdateNotifier.shared.announce(version: latest, url: url, notes: notes) }
     }
 
     private func fetchLatest() async throws -> Release {

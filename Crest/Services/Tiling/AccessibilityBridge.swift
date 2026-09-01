@@ -214,6 +214,25 @@ nonisolated enum AX {
         return resized
     }
 
+    /// Moves and resizes a window in one pass, without the convergence dance.
+    ///
+    /// For the intermediate frames of an animation only. Half the round trips of
+    /// `setFrame`, which is what keeps a nine-window move inside its frame budget,
+    /// and the sloppiness it buys — a window that clamps this frame lands a point
+    /// or two out — is invisible at sixty frames a second and is corrected by the
+    /// careful write at the end of the animation.
+    static func setFrameQuickly(_ frame: CGRect, of window: AXUIElement) {
+        var origin = frame.origin
+        var size = frame.size
+
+        guard let positionValue = AXValueCreate(.cgPoint, &origin),
+              let sizeValue = AXValueCreate(.cgSize, &size)
+        else { return }
+
+        set(window, kAXPositionAttribute as String, positionValue)
+        set(window, kAXSizeAttribute as String, sizeValue)
+    }
+
     // MARK: - Identity
 
     /// The window server's id for an accessibility element.

@@ -8,6 +8,10 @@ import SwiftUI
 /// One pane of the settings window.
 private enum SettingsPane: String, CaseIterable, Identifiable {
     case general = "General"
+    // Second, right under General. The command bar is the fastest way into most
+    // of what Crest does and it was previously one section inside Shortcuts,
+    // which is a pane you only open if you already know you want to bind a key.
+    case commandBar = "Command Bar"
     case menuBar = "Menu Bar"
     case shortcuts = "Shortcuts"
     case aliases = "Aliases"
@@ -23,6 +27,7 @@ private enum SettingsPane: String, CaseIterable, Identifiable {
     var symbolName: String {
         switch self {
         case .general: "gearshape"
+        case .commandBar: "magnifyingglass"
         case .menuBar: "menubar.rectangle"
         case .shortcuts: "command"
         case .aliases: "text.badge.star"
@@ -38,10 +43,10 @@ private enum SettingsPane: String, CaseIterable, Identifiable {
 
 /// A sidebar rather than a row of tabs.
 ///
-/// Seven panes do not fit across a 500-point window: as a `TabView` they
-/// collapsed into a "»" overflow button, which hides four of them behind a menu
-/// and gives no sense of what the window contains. A sidebar shows all seven at
-/// once and has room for the next one.
+/// The panes do not fit across a 500-point window: as a `TabView` they collapsed
+/// into a "»" overflow button, which hides several of them behind a menu and gives
+/// no sense of what the window contains. A sidebar shows every one at once and has
+/// room for the next.
 struct SettingsView: View {
     @State private var pane: SettingsPane = .general
 
@@ -63,6 +68,7 @@ struct SettingsView: View {
     private var detail: some View {
         switch pane {
         case .general: GeneralSettingsTab()
+        case .commandBar: CommandBarSettingsTab()
         case .menuBar: MenuBarSettingsTab()
         case .shortcuts: HotKeysSettingsTab()
         case .aliases: AliasSettingsTab()
@@ -195,18 +201,6 @@ private struct ToolsSettingsTab: View {
         @Bindable var viewModel = viewModel
 
         Form {
-            Section {
-                Toggle("Search files as well as apps", isOn: $viewModel.fileSearchEnabled)
-                Toggle("Preview the selected file", isOn: $viewModel.filePreviewEnabled)
-                    .disabled(!viewModel.fileSearchEnabled)
-            } header: {
-                Text("File search")
-            } footer: {
-                Text("Files come from the Spotlight index macOS already keeps, so there is no second index and nothing to wait for. Type `f ` in front of a query to search files only, or paste a path to jump straight to it. ⌘↩ reveals in Finder, ⌘⇧C copies the path.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-
             Section {
                 Toggle("Keep clipboard history", isOn: Binding(
                     get: { viewModel.clipboard.isEnabled },

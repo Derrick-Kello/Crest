@@ -15,8 +15,8 @@ struct TilingSettingsTab: View {
     @State private var isTrusted = AX.isTrusted
     @State private var innerGap = Preferences.tilingInnerGap
     @State private var outerGap = Preferences.tilingOuterGap
+    @State private var animate = Preferences.tilingAnimations
     @State private var excluded = Preferences.tilingExcludedBundleIDs
-    @State private var isRecording: String?
 
     var body: some View {
         Form {
@@ -52,7 +52,7 @@ struct TilingSettingsTab: View {
         } header: {
             Text("Window manager")
         } footer: {
-            Text("Windows are arranged side by side instead of stacked, and ⌥1 through ⌥9 switch between nine workspaces. Everything can be undone by turning this off, which puts every window back on screen.")
+            Text("Windows are arranged side by side instead of stacked, and \(keys.modifier.symbols)1 through \(keys.modifier.symbols)9 switch between nine workspaces. Everything can be undone by turning this off, which puts every window back on screen.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
@@ -136,26 +136,40 @@ struct TilingSettingsTab: View {
                     engine.apply()
                 }
             }
+
+            Toggle("Slide windows into place", isOn: $animate)
+                .onChange(of: animate) { _, value in Preferences.tilingAnimations = value }
         } header: {
-            Text("Gaps")
+            Text("Gaps and motion")
+        } footer: {
+            Text("macOS has no way to animate another app's window, so Crest moves each one a frame at a time. It is a fifth of a second and costs nothing on a modern Mac, but turn it off if your desktop is busy and the movement stutters.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
         }
     }
 
     // MARK: - Key map
 
     private var keymapSection: some View {
-        Section {
+        // Read once, here, rather than inside the row builders below. The rows are
+        // built lazily by `ForEach`, and a value read inside a lazy builder does
+        // not make this view depend on it — which is why changing the modifier
+        // rebound every key and redrew none of them.
+        let bindings = keys.bindings
+        let modifier = keys.modifier
+
+        return Section {
             Picker("Modifier", selection: Binding(
-                get: { Preferences.tilingModifier },
+                get: { modifier },
                 set: { keys.setModifier($0) }
             )) {
-                ForEach(TilingModifier.allCases) { modifier in
-                    Text("\(modifier.symbols)  \(modifier == .commandControl ? "(recommended)" : "")")
-                        .tag(modifier)
+                ForEach(TilingModifier.allCases) { option in
+                    Text("\(option.symbols)  \(option == .commandControl ? "(recommended)" : "")")
+                        .tag(option)
                 }
             }
 
-            if let caution = Preferences.tilingModifier.caution {
+            if let caution = modifier.caution {
                 Text(caution)
                     .font(.caption)
                     .foregroundStyle(.orange)
@@ -164,11 +178,16 @@ struct TilingSettingsTab: View {
 
             ForEach(TilingKeymap.groups, id: \.self) { group in
                 DisclosureGroup(group) {
-                    ForEach(keys.bindings.filter { $0.group == group }) { binding in
+                    ForEach(bindings.filter { $0.group == group }) { binding in
                         bindingRow(binding)
                     }
                 }
             }
+            // Rows are identified by command, and the command does not change when
+            // the modifier does — so without this, SwiftUI reuses each row and the
+            // recorder inside it keeps drawing the key it was built with. Changing
+            // the identity of the whole list is what forces the new keys on screen.
+            .id(modifier)
 
             Button("Reset every shortcut to its default") {
                 keys.resetToDefaults()

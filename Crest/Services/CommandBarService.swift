@@ -50,12 +50,13 @@ final class CommandBarService {
         isIndexing = true
 
         indexTask = Task { [weak self] in
-            // Apps and the system catalog are independent scans, so they run
-            // concurrently — the app walk is the slow half and the settings read
-            // should not be waiting behind it.
+            // Apps, the system catalog and the folder walk are independent, so
+            // they run concurrently — the app walk is the slow half and neither
+            // of the others should be waiting behind it.
             async let apps = Task.detached(priority: .userInitiated) { AppIndex.scan() }.value
             async let system = Task.detached(priority: .userInitiated) { SystemCatalog.scan() }.value
-            let scanned = await apps + system
+            async let folders = Task.detached(priority: .userInitiated) { FolderIndex.scan() }.value
+            let scanned = await apps + system + folders
 
             guard !Task.isCancelled, let self else { return }
             self.items = scanned
@@ -101,17 +102,29 @@ final class CommandBarService {
             return literal
         }
 
-        // Spotlight runs on its own clock; this only kicks it off, and its results
-        // are folded in below from whatever the last round produced.
-        fileSearch.search(parsed.text, mode: parsed.isFileOnly ? .dedicated : .mixed)
-
-        if parsed.isFileOnly {
-            return Array(fileSearch.results.map { CommandEntry(item: $0, score: 15_000) }
-                .prefix(Self.resultLimit))
-        }
-
         let tokens = FuzzyMatch.tokenize(parsed.text)
         let joined = tokens.joined()
+
+        // Spotlight runs on its own clock; this only kicks it off, and its results
+        // are folded in below from whatever the last round produced.
+        fileSearch.search(parsed.text, mode: parsed.scope)
+
+        if parsed.scope != .mixed {
+            // A scoped search is an explicit request for files, so the catalog
+            // steps aside — except for the indexed folders, which are the fastest
+            // and most likely answer to a folder query and are already in hand
+            // while Spotlight is still thinking.
+            var scoped: [CommandEntry] = []
+            if parsed.scope == .folders {
+                for item in items where item.id.hasPrefix("folder:") {
+                    guard let base = FuzzyMatch.score(tokens: tokens, joined: joined, keys: item.keys) else { continue }
+                    scoped.append(CommandEntry(item: item, score: base + 40_000))
+                }
+            }
+            scoped.append(contentsOf: fileSearch.results.map { CommandEntry(item: $0, score: 15_000) })
+            return Array(scoped.sorted(by: Self.rank).prefix(Self.resultLimit))
+        }
+
         var entries: [CommandEntry] = []
 
         if let answer = Self.evaluateExpression(parsed.text) {
@@ -165,10 +178,13 @@ final class CommandBarService {
             ))
         }
 
-        // Spotlight results already matched by name; they carry a fixed score that
-        // puts them below a real catalog hit but above nothing at all.
-        for item in fileSearch.results {
-            entries.append(CommandEntry(item: item, score: 15_000))
+        // Spotlight results arrive already ranked against each other by
+        // `FileRanking`, and that order is preserved here rather than flattened
+        // to one score — otherwise the six rows files are allowed would be filled
+        // in whatever order Spotlight returned them, which is the bug that kept
+        // folders off the list.
+        for (offset, item) in fileSearch.results.enumerated() {
+            entries.append(CommandEntry(item: item, score: 15_000 - offset))
         }
 
         return Array(pruned(entries).sorted(by: Self.rank).prefix(Self.resultLimit))
@@ -179,31 +195,37 @@ final class CommandBarService {
 
     /// What the user typed, after the prefixes that change the kind of search.
     ///
-    /// Raycast-style scoping, kept to the two that earn their keystrokes: a `f `
-    /// prefix to say "files only", and a literal path to say "this exact thing".
-    /// Anything else is a plain search, because a launcher that needs a syntax
-    /// cheat sheet is a shell with extra steps.
+    /// Raycast-style scoping, kept to the three that earn their keystrokes: `f `
+    /// for files only, `d ` for folders only, and a literal path for this exact
+    /// thing. Anything else is a plain search, because a launcher that needs a
+    /// syntax cheat sheet is a shell with extra steps.
     struct Query {
         let text: String
-        let isFileOnly: Bool
+        let scope: FileSearchService.Mode
         let literalPath: String?
 
         init(raw: String) {
             if raw.hasPrefix("/") || raw.hasPrefix("~/") {
                 let expanded = (raw as NSString).expandingTildeInPath
                 text = raw
-                isFileOnly = true
+                scope = .dedicated
                 literalPath = FileManager.default.fileExists(atPath: expanded) ? expanded : nil
+                return
+            }
+            for prefix in ["folder ", "dir ", "d "] where raw.lowercased().hasPrefix(prefix) {
+                text = String(raw.dropFirst(prefix.count)).trimmingCharacters(in: .whitespaces)
+                scope = .folders
+                literalPath = nil
                 return
             }
             for prefix in ["file ", "f "] where raw.lowercased().hasPrefix(prefix) {
                 text = String(raw.dropFirst(prefix.count)).trimmingCharacters(in: .whitespaces)
-                isFileOnly = true
+                scope = .dedicated
                 literalPath = nil
                 return
             }
             text = raw
-            isFileOnly = false
+            scope = .mixed
             literalPath = nil
         }
 

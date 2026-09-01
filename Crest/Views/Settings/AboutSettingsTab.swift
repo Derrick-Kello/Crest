@@ -61,10 +61,21 @@ struct AboutSettingsTab: View {
                     get: { viewModel.automaticUpdateChecks },
                     set: { viewModel.automaticUpdateChecks = $0 }
                 ))
+
+                Toggle("Notify me when there's a new version", isOn: Binding(
+                    get: { viewModel.updateNotifications },
+                    set: { viewModel.updateNotifications = $0 }
+                ))
+                .disabled(!viewModel.automaticUpdateChecks)
             } header: {
                 Text("Updates")
             } footer: {
-                updateFooter
+                VStack(alignment: .leading, spacing: 4) {
+                    updateFooter
+                    Text("One notification per release, never repeated. macOS asks for permission the first time there is something to say.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
             }
 
             Section {

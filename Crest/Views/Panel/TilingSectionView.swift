@@ -15,6 +15,7 @@ struct TilingSectionView: View {
     @Environment(CrestViewModel.self) private var viewModel
 
     private var engine: TilingEngine { TilingEngine.shared }
+    private var keys: TilingHotKeyService { TilingHotKeyService.shared }
 
     var body: some View {
         PanelCard(section: .tiling) {
@@ -101,7 +102,7 @@ struct TilingSectionView: View {
 
     private var idleState: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Arranges your windows side by side instead of stacked, with nine workspaces on ⌥1 through ⌥9.")
+            Text("Arranges your windows side by side instead of stacked, with nine workspaces on \(keys.modifier.symbols)1 through \(keys.modifier.symbols)9.")
                 .font(.system(size: 11))
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -127,7 +128,7 @@ struct TilingSectionView: View {
             }
 
             HStack(spacing: 8) {
-                Button("Re-tile") { engine.refresh() }
+                Button("Re-tile") { engine.retile() }
                 Button("Stop") {
                     engine.stop()
                     Preferences.tilingEnabled = false
@@ -193,9 +194,11 @@ struct TilingSectionView: View {
 
             Spacer()
 
-            Text("⌥E to cycle")
-                .font(.system(size: 10))
-                .foregroundStyle(.tertiary)
+            if let cycle = keys.shortcut(for: "layout.cycle") {
+                Text("\(cycle) to cycle")
+                    .font(.system(size: 10))
+                    .foregroundStyle(.tertiary)
+            }
         }
     }
 
@@ -206,6 +209,9 @@ struct TilingSectionView: View {
             .reduce(into: [String]()) { unique, name in
                 if !unique.contains(name) { unique.append(name) }
             }
-        return names.isEmpty ? "Workspace \(workspace.index) — empty" : names.joined(separator: ", ")
+        let key = keys.shortcut(for: "workspace.\(workspace.index)").map { " (\($0))" } ?? ""
+        return names.isEmpty
+            ? "Workspace \(workspace.index) — empty\(key)"
+            : "\(names.joined(separator: ", "))\(key)"
     }
 }

@@ -56,11 +56,11 @@ struct CommandBarView: View {
             field
 
             if !rows.isEmpty {
-                Divider()
+                seam
                 HStack(spacing: 0) {
                     list
                     if let path = previewPath {
-                        Divider()
+                        verticalSeam
                         FilePreviewPane(path: path, fallbackTitle: rows[selection].entry?.title ?? "")
                             .frame(height: listHeight)
                     }
@@ -69,11 +69,7 @@ struct CommandBarView: View {
                 empty
             }
         }
-        .background(.regularMaterial, in: .rect(cornerRadius: 14))
-        .overlay(
-            RoundedRectangle(cornerRadius: 14)
-                .strokeBorder(.white.opacity(0.12), lineWidth: 1)
-        )
+        .commandBarSurface()
         .onAppear { refresh() }
         .onChange(of: query) { _, _ in refresh() }
         // The catalog is built in the background, so results are recomputed when
@@ -132,9 +128,23 @@ struct CommandBarView: View {
         .frame(height: fieldHeight)
     }
 
+    /// A hairline rule instead of `Divider`.
+    ///
+    /// `Divider` draws a separator colour meant for an opaque window, and over the
+    /// glass it is either invisible or a hard grey bar depending on what is behind
+    /// the bar. A wash of the foreground colour follows the appearance instead, and
+    /// stays a hairline in both.
+    private var seam: some View {
+        Rectangle().fill(.primary.opacity(0.08)).frame(height: 1)
+    }
+
+    private var verticalSeam: some View {
+        Rectangle().fill(.primary.opacity(0.08)).frame(width: 1)
+    }
+
     private var empty: some View {
         VStack(spacing: 0) {
-            Divider()
+            seam
             HStack {
                 Text("No results")
                     .font(.system(size: 13))
@@ -224,11 +234,12 @@ struct CommandBarView: View {
         .padding(.horizontal, 12)
         .padding(.leading, 5)
         .frame(height: rowHeight)
-        .background(
-            RoundedRectangle(cornerRadius: 8)
-                .fill(isSelected ? AnyShapeStyle(.tint.opacity(0.25)) : AnyShapeStyle(.clear))
-                .padding(.horizontal, 8)
-        )
+        .background {
+            if isSelected {
+                CommandBarSelection()
+                    .padding(.horizontal, 8)
+            }
+        }
     }
 
     /// Says what ↩ will actually do, so nothing destructive happens unannounced.

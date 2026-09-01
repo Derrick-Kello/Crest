@@ -159,7 +159,14 @@ extension TilingEngine {
         let workspace = workspaces[activeWorkspace - 1]
         let depth: Int = switch workspace.mode {
         case .dwindle:
-            focusedWindow().flatMap { workspace.order.firstIndex(of: $0.id) }.map { max(0, $0 - 1) } ?? 0
+            // Pane `n` is the one cut off at depth `n`, so that is the split to
+            // move. The last pane is whatever is left over and has no cut of its
+            // own — it shares the one above it, which is the only split that can
+            // change its size at all.
+            min(
+                focusedWindow().flatMap { workspace.order.firstIndex(of: $0.id) } ?? 0,
+                max(0, workspace.order.filter { !workspace.floating.contains($0) }.count - 2)
+            )
         case .tall, .wide, .monocle:
             0
         }
@@ -231,9 +238,25 @@ extension TilingEngine {
     // MARK: - Lookups
 
     /// The focused window, if the tiler manages it.
+    ///
+    /// Falls back to the last one that was focused when the answer is a window the
+    /// tiler does not manage — which is every time a command comes from the
+    /// command bar, since Crest is frontmost by then. The live answer wins when
+    /// there is one, so a shortcut pressed with a real window in front is never
+    /// answered with a stale one.
     func focusedWindow() -> TilingWindow? {
-        guard let id = WindowEnumerator.focused(), let window = windows[id] else { return nil }
-        return workspaces[activeWorkspace - 1].order.contains(id) ? window : nil
+        if let id = WindowEnumerator.focused(),
+           let window = windows[id],
+           workspaces[activeWorkspace - 1].order.contains(id) {
+            lastFocused = id
+            return window
+        }
+
+        guard let remembered = lastFocused,
+              let window = windows[remembered],
+              workspaces[activeWorkspace - 1].order.contains(remembered)
+        else { return nil }
+        return window
     }
 
     private func visibleWindows() -> [TilingWindow] {

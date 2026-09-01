@@ -278,6 +278,17 @@ final class CrestViewModel {
     private(set) var hotKeyRegistrationFailed = false
 
     var automaticUpdateChecks: Bool { didSet { Preferences.automaticUpdateChecks = automaticUpdateChecks } }
+    /// Turning this back on forgets what has already been announced, so a release
+    /// the user missed while it was off is told to them once rather than waiting
+    /// for the next one.
+    var updateNotifications: Bool {
+        didSet {
+            Preferences.updateNotifications = updateNotifications
+            guard updateNotifications, updateNotifications != oldValue else { return }
+            UpdateNotifier.shared.resetAnnouncements()
+            Task { await UpdateNotifier.shared.requestAuthorization() }
+        }
+    }
     var fileSearchEnabled: Bool { didSet { Preferences.fileSearchEnabled = fileSearchEnabled } }
     var filePreviewEnabled: Bool { didSet { Preferences.filePreviewEnabled = filePreviewEnabled } }
 
@@ -371,6 +382,7 @@ final class CrestViewModel {
         commandBarEnabled = Preferences.commandBarEnabled
         commandBarHotKey = Preferences.commandBarHotKey
         automaticUpdateChecks = Preferences.automaticUpdateChecks
+        updateNotifications = Preferences.updateNotifications
         fileSearchEnabled = Preferences.fileSearchEnabled
         filePreviewEnabled = Preferences.filePreviewEnabled
         voiceEnabled = Preferences.voiceEnabled
@@ -446,6 +458,10 @@ final class CrestViewModel {
         if OnboardingController.isPending {
             OnboardingController.shared.show(viewModel: self)
         }
+        // Before the check, so a tap on a notification this run posts — or one
+        // left sitting in Notification Centre from the last run — has somewhere to
+        // be delivered.
+        UpdateNotifier.shared.configure()
         updates.checkInBackgroundIfDue()
         startRefreshLoopIfNeeded()
         // The menu bar can show a live metric, which needs sampling even when the
@@ -647,8 +663,17 @@ final class CrestViewModel {
             statusMessage = "\(section.rawValue) is open in the panel"
             return
         }
+        // Same for the nine workspaces and the nine send-to-workspace commands.
+        if id.hasPrefix("action:workspace.") {
+            runWorkspaceAction(String(id.dropFirst("action:workspace.".count)))
+            return
+        }
 
         switch id {
+        case "action:section.next":
+            stepSection(by: 1)
+        case "action:section.previous":
+            stepSection(by: -1)
         case "action:scan":
             Task { await runScan() }
         case "action:review":
@@ -672,7 +697,7 @@ final class CrestViewModel {
             TilingEngine.shared.cycleLayout()
             statusMessage = TilingEngine.shared.status
         case "action:tiling.retile":
-            TilingEngine.shared.refresh()
+            TilingEngine.shared.retile()
             statusMessage = "Windows re-tiled"
         case "action:network":
             selectedSection = .network
@@ -711,6 +736,59 @@ final class CrestViewModel {
         default:
             break
         }
+    }
+
+    /// Moves the panel one tab along, wrapping at both ends.
+    private func stepSection(by delta: Int) {
+        let sections = visibleSections
+        guard !sections.isEmpty else { return }
+        let current = sections.firstIndex(of: selectedSection) ?? 0
+        let next = (current + delta + sections.count) % sections.count
+        selectedSection = sections[next]
+        statusMessage = "\(selectedSection.rawValue) is open in the panel"
+    }
+
+    /// Switching workspaces, and sending a window to one.
+    ///
+    /// Both start the window manager if it is off. These commands are how most
+    /// people will meet workspaces at all — the feature is otherwise behind a
+    /// settings toggle and a modifier they have to be told about — and a result
+    /// that appears in the list, gets picked, and does nothing is worse than one
+    /// that is not there.
+    private func runWorkspaceAction(_ suffix: String) {
+        let engine = TilingEngine.shared
+        let wasRunning = engine.isRunning
+
+        if !wasRunning {
+            engine.start()
+            Preferences.tilingEnabled = engine.isRunning
+            TilingHotKeyService.shared.registerAll()
+            guard engine.isRunning else {
+                statusMessage = engine.status ?? "Window tiling needs Accessibility permission first"
+                return
+            }
+        }
+
+        let prefix = wasRunning ? "" : "Tiling on — "
+
+        switch suffix {
+        case "next":
+            engine.switchToWorkspaceCycling(forward: true)
+        case "previous":
+            engine.switchToWorkspaceCycling(forward: false)
+        default:
+            let parts = suffix.split(separator: ".")
+            guard let number = parts.last.flatMap({ Int($0) }) else { return }
+            if suffix.hasPrefix("move.") {
+                // Follows the window rather than staying put. Sending a window
+                // somewhere from a launcher and being left staring at the space it
+                // used to occupy is not what anybody means by it.
+                engine.followFocused(toWorkspace: number)
+            } else {
+                engine.switchTo(workspace: number)
+            }
+        }
+        statusMessage = prefix + (engine.status ?? "Workspace \(engine.activeWorkspace)")
     }
 
     /// Set by the app scene, which is the only place that owns `openWindow`.
